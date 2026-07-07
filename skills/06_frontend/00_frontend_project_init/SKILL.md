@@ -32,10 +32,43 @@
 
 ## 4. 标准输出
 
+
+## 4.1 前端输出路径硬规则
+
+前端真实项目代码必须生成到：
+
+```text
+project/frontend/
+```
+
+禁止生成到：
+
+```text
+skills/06_frontend/
+frontend/
+```
+
+除非用户明确指定其他业务项目目录，否则所有前端文件路径都必须以 `project/frontend/` 开头，例如：
+
+```text
+project/frontend/package.json
+project/frontend/index.html
+project/frontend/src/main.ts
+project/frontend/src/pages/
+project/frontend/src/components/
+```
+
+原生微信小程序默认放到：
+
+```text
+project/frontend/miniprogram/
+```
+
+
 每次执行本 Skill，至少输出：
 
 - 初始化步骤
-- 目录结构
+- `project/frontend/` 目录结构
 - 基础封装
 - 验证命令
 
@@ -91,6 +124,7 @@
 - 表单提交必须防重复点击
 - 前端权限仅用于展示，不能替代后端校验
 - 移动端/PC 适配要提前考虑
+- 禁止把前端代码写入 skills/06_frontend/；真实前端只能写入 project/frontend/
 
 ---
 
@@ -126,3 +160,68 @@
 - 能后续迭代的，先从 MVP 移除。
 - 每个方案都要给「最小可行版」和「后续增强版」。
 - 每次输出都要提醒我可能返工的点。
+
+
+---
+
+<!-- routing_matrix_enhancement_v1 -->
+## 路由矩阵增强：执行模式、反模式与验证
+
+- 路由 ID：`frontend.frontend_project_init`
+- 阶段：前端 / `frontend`
+- 阶段顺序：7
+- 风险等级：`high`
+- 默认执行模式：`strict`
+
+### 必要前置材料
+
+- 前端技术栈
+- UI 规范
+- 接口规范
+- 页面说明
+- 接口文档
+- 权限规则
+- UI/交互要求
+- 角色模型
+
+### 反模式 / 禁止事项
+
+- 禁止只做前端路由守卫，不做后端权限校验。
+- 禁止只校验角色，不校验数据归属。
+- 禁止普通用户通过 ID 枚举访问他人数据。
+- 禁止管理后台接口默认开放。
+- 禁止绕过租户、组织、部门、创建人等数据范围。
+- 禁止生产库直接执行未审查 SQL。
+- 禁止没有备份就做破坏性变更。
+- 禁止只写迁移 SQL、不写回滚 SQL。
+
+### 高风险强制门禁
+
+本 Skill 命中高风险或严格模式时，必须额外输出：
+- 风险清单
+- 测试用例
+- 回滚方案
+- 验收标准
+- 日志与监控点
+- 失败处理方案
+
+### 验证命令要求
+
+本 Skill 执行结束时，必须给出本次建议运行的验证命令；如果当前工具无法运行命令，必须明确标注“未实际验证”。
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test`
+- `npm run build`
+- `mysql < sql/database.sql`
+- 执行迁移 SQL 前先在测试库验证
+
+### 后续 Skill 推荐
+
+- `integration_debugging.full_process_runthrough`
+- `testing.functional_test_cases`
+- `security.auth_security_check`
+- `testing.permission_test_cases`
+- `testing.regression_test_suite`
+- `deployment_ops.database_init_backup`
+

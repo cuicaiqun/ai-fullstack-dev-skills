@@ -12,3 +12,4 @@
 - [Bug 报告模板](./07_bug_report_template/SKILL.md)：把发现的问题整理为可复现、可修复、可回归的报告
 - [回归测试套件](./08_regression_test_suite/SKILL.md)：按核心链路和修复点生成回归测试清单
 - [上线验收测试](./09_release_acceptance_test/SKILL.md)：上线前最终检查功能、数据、权限、安全、部署
+- [测试驱动开发（TDD）](./10_test_driven_development/SKILL.md)：先写失败测试，再写最小实现，按红灯→绿灯→重构推进开发

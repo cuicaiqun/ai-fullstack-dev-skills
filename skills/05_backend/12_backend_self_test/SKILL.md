@@ -125,3 +125,68 @@
 - 能后续迭代的，先从 MVP 移除。
 - 每个方案都要给「最小可行版」和「后续增强版」。
 - 每次输出都要提醒我可能返工的点。
+
+
+---
+
+<!-- routing_matrix_enhancement_v1 -->
+## 路由矩阵增强：执行模式、反模式与验证
+
+- 路由 ID：`backend.backend_self_test`
+- 阶段：后端 / `backend`
+- 阶段顺序：6
+- 风险等级：`high`
+- 默认执行模式：`strict`
+
+### 必要前置材料
+
+- 接口文档
+- 代码
+- 业务规则
+- PRD
+- 数据库表结构
+- 权限规则
+- 支付渠道
+- 订单状态机
+
+### 反模式 / 禁止事项
+
+- 禁止使用前端传入金额作为最终支付金额，金额必须以后端订单/支付单为准。
+- 禁止无验签处理支付回调。
+- 禁止无幂等处理重复回调。
+- 禁止支付成功后只改订单、不记录支付流水。
+- 禁止没有超时未支付关闭逻辑。
+- 禁止没有退款、对账、异常补偿的预留设计。
+- 禁止只做前端路由守卫，不做后端权限校验。
+- 禁止只校验角色，不校验数据归属。
+
+### 高风险强制门禁
+
+本 Skill 命中高风险或严格模式时，必须额外输出：
+- 风险清单
+- 测试用例
+- 回滚方案
+- 验收标准
+- 日志与监控点
+- 失败处理方案
+
+### 验证命令要求
+
+本 Skill 执行结束时，必须给出本次建议运行的验证命令；如果当前工具无法运行命令，必须明确标注“未实际验证”。
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test`
+- `npm run build`
+- `mysql < sql/database.sql`
+- 执行迁移 SQL 前先在测试库验证
+
+### 后续 Skill 推荐
+
+- `frontend.api_client_wrapper`
+- `integration_debugging.api_integration_plan`
+- `testing.api_test_cases`
+- `api.openapi_spec_generator`
+- `security.payment_security_check`
+- `testing.integration_test`
+

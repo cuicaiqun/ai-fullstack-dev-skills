@@ -1,9 +1,9 @@
 # docs 文档目录结构模板
 
-建议项目文档目录如下：
+建议业务项目文档目录如下，实际落盘在 `project/docs/`：
 
 ```text
-docs/
+project/docs/
 ├── README.md
 ├── 01_requirements/
 │   ├── requirements_brief.md

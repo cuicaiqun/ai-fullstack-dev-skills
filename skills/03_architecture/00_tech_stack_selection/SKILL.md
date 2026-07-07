@@ -127,3 +127,100 @@
 - 能后续迭代的，先从 MVP 移除。
 - 每个方案都要给「最小可行版」和「后续增强版」。
 - 每次输出都要提醒我可能返工的点。
+
+---
+
+<!-- enhanced_stack_rules_v1 -->
+## 10. 技术栈选择增强规则
+
+技术栈不能固定套用，必须说明默认推荐、可替代方案、不适用场景和选择依据。
+
+| 项目类型 | 默认推荐 | 可替代方案 | 不适用提醒 |
+|---|---|---|---|
+| 小程序 / 轻应用 | uni-app + Vue3 + Node.js + MySQL | 原生微信小程序、Taro、NestJS、Java Spring Boot | 如果强依赖微信原生能力，uni-app 需评估插件成本 |
+| 管理后台 | Vue3 / React + Node.js / Java / Python + MySQL | Ant Design Pro、Naive UI、Element Plus | 不要为简单后台过度微服务化 |
+| SaaS | React / Vue + Node.js / Java + PostgreSQL / MySQL | Next.js / Nuxt、NestJS、Spring Boot | 必须额外考虑多租户、计费、权限、审计 |
+| 内容站 / SEO | Next.js / Nuxt | Astro、WordPress、Headless CMS | 纯 SPA 不利于 SEO |
+| 数据密集型系统 | 后端优先 + PostgreSQL / MySQL | Python / Java / Go | 不要把复杂计算塞到前端 |
+
+每次输出技术栈建议时，必须包含：
+
+- 为什么适合单人开发
+- 学习和维护成本
+- 部署复杂度
+- 后期可扩展路径
+- 明确不推荐的方案及原因
+
+
+---
+
+<!-- routing_matrix_enhancement_v1 -->
+## 路由矩阵增强：执行模式、反模式与验证
+
+- 路由 ID：`architecture.tech_stack_selection`
+- 阶段：架构 / `architecture`
+- 阶段顺序：3
+- 风险等级：`high`
+- 默认执行模式：`strict`
+
+### 必要前置材料
+
+- 项目类型
+- 平台
+- 开发经验
+- 部署资源
+- PRD
+- 页面/业务流程
+- 技术栈约束
+- 上线环境
+
+### 反模式 / 禁止事项
+
+- 禁止明文存储密码、Token、密钥或验证码。
+- 禁止只做前端登录态判断，不做后端认证。
+- 禁止 Token 永不过期或无刷新/失效策略。
+- 禁止登录失败无限尝试且无风控/限流。
+- 禁止把敏感用户信息直接写入前端可篡改状态。
+- 禁止只做前端路由守卫，不做后端权限校验。
+- 禁止只校验角色，不校验数据归属。
+- 禁止普通用户通过 ID 枚举访问他人数据。
+
+### 高风险强制门禁
+
+本 Skill 命中高风险或严格模式时，必须额外输出：
+- 风险清单
+- 测试用例
+- 回滚方案
+- 验收标准
+- 日志与监控点
+- 失败处理方案
+
+### 验证命令要求
+
+本 Skill 执行结束时，必须给出本次建议运行的验证命令；如果当前工具无法运行命令，必须明确标注“未实际验证”。
+
+- `mysql < sql/database.sql`
+- 执行迁移 SQL 前先在测试库验证
+- 执行回滚 SQL 演练
+
+### 后续 Skill 推荐
+
+- `database.entity_modeling`
+- `api.api_design_orchestrator`
+- `security.auth_security_check`
+- `testing.permission_test_cases`
+- `testing.regression_test_suite`
+- `deployment_ops.database_init_backup`
+
+---
+
+## 11. 前端组件库选型联动
+
+当技术栈包含前端页面、管理后台、移动 H5、小程序、uni-app、SaaS 或官网时，技术栈选型完成后必须判断是否需要进入：
+
+```text
+architecture.frontend_ui_library_selection
+```
+
+该 Skill 专门负责选择 Element Plus、Naive UI、Ant Design、Vant、uni-ui、TDesign、Arco Design、Tailwind CSS 等前端 UI / 组件方案，并输出安装命令、接入目录和基础组件二次封装策略。
+

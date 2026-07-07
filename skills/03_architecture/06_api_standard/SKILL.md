@@ -125,3 +125,86 @@
 - 能后续迭代的，先从 MVP 移除。
 - 每个方案都要给「最小可行版」和「后续增强版」。
 - 每次输出都要提醒我可能返工的点。
+
+---
+
+<!-- enhanced_api_rules_v1 -->
+## 10. API 规范硬性规则
+
+接口规范必须能够支持前后端并行开发，至少包含：
+
+- [ ] OpenAPI 或等价 Markdown 接口契约
+- [ ] 统一响应结构
+- [ ] 统一错误码
+- [ ] 认证和授权规则
+- [ ] 分页、排序、筛选规则
+- [ ] 幂等键规则
+- [ ] 文件上传规则
+- [ ] Webhook / 回调验签规则
+- [ ] Mock 数据和契约测试建议
+
+如果用户要求“生成接口文档”，优先路由到：`skills/05_api/`。
+
+推荐使用：`templates/api_spec_template.md`、`templates/openapi_spec_template.yaml`
+
+
+---
+
+<!-- routing_matrix_enhancement_v1 -->
+## 路由矩阵增强：执行模式、反模式与验证
+
+- 路由 ID：`architecture.api_standard`
+- 阶段：架构 / `architecture`
+- 阶段顺序：3
+- 风险等级：`high`
+- 默认执行模式：`strict`
+
+### 必要前置材料
+
+- 技术栈
+- 前后端协作方式
+- PRD
+- 页面/业务流程
+- 技术栈约束
+- 上线环境
+- 登录方式
+- 用户模型
+
+### 反模式 / 禁止事项
+
+- 禁止明文存储密码、Token、密钥或验证码。
+- 禁止只做前端登录态判断，不做后端认证。
+- 禁止 Token 永不过期或无刷新/失效策略。
+- 禁止登录失败无限尝试且无风控/限流。
+- 禁止把敏感用户信息直接写入前端可篡改状态。
+- 禁止只做前端路由守卫，不做后端权限校验。
+- 禁止只校验角色，不校验数据归属。
+- 禁止普通用户通过 ID 枚举访问他人数据。
+
+### 高风险强制门禁
+
+本 Skill 命中高风险或严格模式时，必须额外输出：
+- 风险清单
+- 测试用例
+- 回滚方案
+- 验收标准
+- 日志与监控点
+- 失败处理方案
+
+### 验证命令要求
+
+本 Skill 执行结束时，必须给出本次建议运行的验证命令；如果当前工具无法运行命令，必须明确标注“未实际验证”。
+
+- `mysql < sql/database.sql`
+- 执行迁移 SQL 前先在测试库验证
+- 执行回滚 SQL 演练
+
+### 后续 Skill 推荐
+
+- `database.entity_modeling`
+- `api.api_design_orchestrator`
+- `security.auth_security_check`
+- `testing.permission_test_cases`
+- `testing.regression_test_suite`
+- `deployment_ops.database_init_backup`
+

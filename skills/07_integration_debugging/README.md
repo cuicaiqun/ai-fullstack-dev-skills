@@ -10,3 +10,4 @@
 - [完整业务流程跑通](./05_full_process_runthrough/SKILL.md)：把注册/登录/下单/支付/后台处理等主流程完整跑通
 - [Bug 根因分析](./06_bug_root_cause_analysis/SKILL.md)：不只修表面问题，找出根因、影响面和防复发措施
 - [修复后回归](./07_regression_after_fix/SKILL.md)：修复 bug 后检查相关功能是否被影响
+- [系统性调试](./08_systematic_debugging/SKILL.md)：按复现、缩小范围、假设验证、最小修复、验证回归定位问题

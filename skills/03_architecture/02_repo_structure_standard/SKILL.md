@@ -31,6 +31,39 @@
 
 ## 4. 标准输出
 
+
+## 4.1 强制项目目录规范
+
+默认真实业务项目必须放在 `project/` 目录内，不允许把真实代码写入 Skills 工具包的 `skills/`、`templates/`、`examples/` 或根目录。
+
+标准结构：
+
+```text
+project/
+├── backend/           # 后端真实项目代码
+├── frontend/          # 前端真实项目代码
+├── docs/              # 业务项目文档
+├── sql/               # database.sql、迁移 SQL、种子数据说明
+├── tests/             # 单元测试、接口测试、E2E 测试
+├── scripts/           # 初始化、构建、部署辅助脚本
+├── .env.example
+├── README.md
+└── START_HERE.md
+```
+
+目录边界：
+
+| 目录 | 可以放什么 | 禁止放什么 |
+|---|---|---|
+| `skills/` | Skill 说明、流程、门禁、路由 | 真实业务代码 |
+| `templates/` | 可复用模板 | 当前项目的实际代码 |
+| `examples/` | 示例项目片段 | 当前真实项目代码 |
+| `project/backend/` | 后端真实代码 | Skill 文档 |
+| `project/frontend/` | 前端真实代码 | Skill 文档 |
+| `project/docs/` | 当前业务项目文档 | Skills 工具包说明 |
+| `project/sql/` | 当前业务项目 SQL | 通用模板 SQL |
+
+
 每次执行本 Skill，至少输出：
 
 - 目录结构
@@ -75,6 +108,8 @@
 
 - [ ] 是否便于单人维护
 - [ ] 是否避免混乱
+- [ ] 是否所有真实代码都在 project/ 内
+- [ ] 是否后端在 project/backend/、前端在 project/frontend/
 
 ### 五、下一步
 
@@ -125,3 +160,65 @@
 - 能后续迭代的，先从 MVP 移除。
 - 每个方案都要给「最小可行版」和「后续增强版」。
 - 每次输出都要提醒我可能返工的点。
+
+
+---
+
+<!-- routing_matrix_enhancement_v1 -->
+## 路由矩阵增强：执行模式、反模式与验证
+
+- 路由 ID：`architecture.repo_structure_standard`
+- 阶段：架构 / `architecture`
+- 阶段顺序：3
+- 风险等级：`high`
+- 默认执行模式：`strict`
+
+### 必要前置材料
+
+- 技术栈
+- 项目类型
+- PRD
+- 页面/业务流程
+- 技术栈约束
+- 上线环境
+- 登录方式
+- 用户模型
+
+### 反模式 / 禁止事项
+
+- 禁止明文存储密码、Token、密钥或验证码。
+- 禁止只做前端登录态判断，不做后端认证。
+- 禁止 Token 永不过期或无刷新/失效策略。
+- 禁止登录失败无限尝试且无风控/限流。
+- 禁止把敏感用户信息直接写入前端可篡改状态。
+- 禁止只做前端路由守卫，不做后端权限校验。
+- 禁止只校验角色，不校验数据归属。
+- 禁止普通用户通过 ID 枚举访问他人数据。
+
+### 高风险强制门禁
+
+本 Skill 命中高风险或严格模式时，必须额外输出：
+- 风险清单
+- 测试用例
+- 回滚方案
+- 验收标准
+- 日志与监控点
+- 失败处理方案
+
+### 验证命令要求
+
+本 Skill 执行结束时，必须给出本次建议运行的验证命令；如果当前工具无法运行命令，必须明确标注“未实际验证”。
+
+- `mysql < sql/database.sql`
+- 执行迁移 SQL 前先在测试库验证
+- 执行回滚 SQL 演练
+
+### 后续 Skill 推荐
+
+- `database.entity_modeling`
+- `api.api_design_orchestrator`
+- `security.auth_security_check`
+- `testing.permission_test_cases`
+- `testing.regression_test_suite`
+- `deployment_ops.database_init_backup`
+

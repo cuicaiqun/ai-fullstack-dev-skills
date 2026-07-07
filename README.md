@@ -6,8 +6,8 @@
 
 ```text
 项目想法 → 需求澄清 → MVP → PRD → 页面设计 → 架构设计
-→ 数据库设计 → 接口设计 → 前后端开发 → 联调 → 测试
-→ 安全检查 → 部署上线 → 运维迭代
+→ 数据库设计 → 接口设计 → 测试驱动开发 → 前后端开发 → 联调
+→ 系统性调试 → 测试 → 安全检查 → 部署上线 → 运维迭代
 ```
 
 你只需要告诉 AI：“我要做一个什么项目”，AI 就可以根据当前阶段自动选择对应 Skill，按真实开发流程一步一步协助你推进。
@@ -21,6 +21,7 @@
 - 没有产品经理，需求容易不清楚
 - 没有架构师，数据库和接口容易设计混乱
 - 没有测试人员，异常场景容易漏掉
+- 没有 TDD 约束，AI 容易直接写实现、改坏旧功能
 - 没有安全人员，容易忽略越权、SQL 注入、XSS、Token、文件上传等风险
 - 没有运维人员，部署、回滚、备份、日志监控不规范
 - 使用 AI 写代码时，AI 经常直接写代码，缺少完整软件工程流程
@@ -97,18 +98,40 @@ AI单人全栈开发Skills/
 ├── README.md
 ├── LICENSE
 ├── 00_MASTER_PROMPT.md
+├── START_HERE.md
 ├── SKILLS_INDEX.md
 ├── skills_index.json
-├── skills/
-├── docs/
-├── templates/
-└── sql/
-    └── database.sql
+├── skill_routing_matrix.json
+├── skills/              # Skill 规则区：不要写真实业务代码
+├── templates/           # 模板区
+├── examples/            # 示例区
+└── project/             # 真实业务项目工作区
+    ├── backend/         # 后端真实项目代码
+    ├── frontend/        # 前端真实项目代码
+    ├── docs/            # 业务项目文档
+    ├── sql/             # 业务项目 SQL，例如 database.sql
+    ├── tests/           # 测试
+    └── scripts/         # 项目脚本
 ```
 
 ---
 
 ## 快速使用
+
+
+### 0. 先明确代码输出目录
+
+真实项目代码统一写到 `project/`：
+
+```text
+project/backend/   # 后端
+project/frontend/  # 前端
+project/docs/      # 项目文档
+project/sql/       # 数据库 SQL
+```
+
+`skills/05_backend/` 和 `skills/06_frontend/` 只是技能说明目录，不是实际项目代码目录。
+
 
 ### 1. 先复制总控提示词
 
@@ -166,6 +189,21 @@ AI 会根据当前任务自动使用对应 Skill。
 
 ---
 
+
+### 4. 使用 TDD 和系统性调试
+
+当你希望 AI 不要直接写实现，可以说：
+
+```text
+按 TDD 做这个功能，先写失败测试，再写最小实现。
+```
+
+当项目报错或测试失败时，可以说：
+
+```text
+启动系统性调试 Skill，先复现、收集证据、建立假设，再给最小修复方案。
+```
+
 ## 推荐开发流程
 
 ```text
@@ -179,6 +217,7 @@ AI 会根据当前任务自动使用对应 Skill。
 → 数据库设计
 → 接口设计
 → 开发任务拆分
+→ 测试驱动开发
 → 后端开发
 → 前端开发
 → 联调
@@ -238,3 +277,44 @@ AI 会根据当前任务自动使用对应 Skill。
 ## License
 
 MIT License
+
+---
+
+<!-- fixed_v2_notes -->
+## 结构修复版说明
+
+本版本修复了首版中影响使用体验的几个问题：
+
+- 新增 `skills/05_api/`，补齐接口阶段 Skill。
+- 重建 `skills_index.json`，列出每个具体 Skill，而不仅是分类。
+- 补齐 `QUICK_PROMPT_直接复制给AI.md` 和 `QUICK_PROMPT_数据库SQL生成.md`。
+- 修复 `skills/06_frontend/` 下重复编号目录。
+- 增加轻量 / 标准 / 严格三种执行模式，避免简单问题也强制生成大量文档。
+- 数据库规则调整为：MVP 阶段单 SQL；上线后引入 `migrations/`、`seed/`、`rollback/`。
+- 增加 PRD、API、数据库、支付、权限、安全、部署、工程校验模板。
+
+推荐入口仍然是：
+
+```text
+00_MASTER_PROMPT.md
+```
+
+如果只想快速启动，可直接复制：
+
+```text
+QUICK_PROMPT_直接复制给AI.md
+```
+
+## 路由矩阵增强版新增入口
+
+- `START_HERE.md`：一键启动项目黄金路径。
+- `skill_routing_matrix.json`：机器可读 Skill 路由矩阵。
+- `SKILL_ROUTING_MATRIX.md`：人类可读路由矩阵总览。
+- `CORE_SKILL_VIEW.md`：主 Skill + 子清单视图。
+- `HARD_GATES.md`：高风险场景强制门禁。
+- `templates/engineering/verification_commands.md`：验证命令模板。
+- `docs/00_getting_started/ai_tool_usage.md`：AI 工具适配说明。
+- `SKILL_QUALITY_REPORT.md`：Skill 质量评分报告。
+
+推荐从 `START_HERE.md` 开始，而不是直接浏览全部 Skill。
+

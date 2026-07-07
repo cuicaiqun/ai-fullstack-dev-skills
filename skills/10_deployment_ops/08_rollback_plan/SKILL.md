@@ -125,3 +125,84 @@
 - 能后续迭代的，先从 MVP 移除。
 - 每个方案都要给「最小可行版」和「后续增强版」。
 - 每次输出都要提醒我可能返工的点。
+
+---
+
+<!-- enhanced_rollback_rules_v1 -->
+## 10. 回滚计划硬性规则
+
+上线方案必须同时包含回滚方案。涉及数据库变更时，必须说明：
+
+- [ ] 是否已备份
+- [ ] 是否有 migration 编号
+- [ ] 是否有 rollback 脚本或人工回滚步骤
+- [ ] 是否存在不可逆变更
+- [ ] 是否演练过回滚
+- [ ] 回滚后如何验证业务恢复
+
+推荐使用：`templates/deployment_checklist_template.md`
+
+
+---
+
+<!-- routing_matrix_enhancement_v1 -->
+## 路由矩阵增强：执行模式、反模式与验证
+
+- 路由 ID：`deployment_ops.rollback_plan`
+- 阶段：部署运维 / `deployment_ops`
+- 阶段顺序：11
+- 风险等级：`high`
+- 默认执行模式：`strict`
+
+### 必要前置材料
+
+- 版本信息
+- 数据库变更
+- 部署方式
+- 构建产物
+- 环境变量
+- 服务器信息
+- 回滚要求
+- 角色模型
+
+### 反模式 / 禁止事项
+
+- 禁止只做前端路由守卫，不做后端权限校验。
+- 禁止只校验角色，不校验数据归属。
+- 禁止普通用户通过 ID 枚举访问他人数据。
+- 禁止管理后台接口默认开放。
+- 禁止绕过租户、组织、部门、创建人等数据范围。
+- 禁止生产库直接执行未审查 SQL。
+- 禁止没有备份就做破坏性变更。
+- 禁止只写迁移 SQL、不写回滚 SQL。
+
+### 高风险强制门禁
+
+本 Skill 命中高风险或严格模式时，必须额外输出：
+- 风险清单
+- 测试用例
+- 回滚方案
+- 验收标准
+- 日志与监控点
+- 失败处理方案
+
+### 验证命令要求
+
+本 Skill 执行结束时，必须给出本次建议运行的验证命令；如果当前工具无法运行命令，必须明确标注“未实际验证”。
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test`
+- `npm run build`
+- `mysql < sql/database.sql`
+- 执行迁移 SQL 前先在测试库验证
+
+### 后续 Skill 推荐
+
+- `iteration.release_notes`
+- `iteration.feedback_triage`
+- `security.auth_security_check`
+- `testing.permission_test_cases`
+- `testing.regression_test_suite`
+- `deployment_ops.database_init_backup`
+

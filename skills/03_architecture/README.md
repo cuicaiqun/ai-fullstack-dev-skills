@@ -14,3 +14,4 @@
 - [缓存策略](./09_cache_strategy/SKILL.md)：设计 Redis/本地缓存、失效、穿透、击穿、雪崩防护
 - [第三方服务方案](./10_third_party_service_plan/SKILL.md)：规划登录、支付、短信、邮件、地图、OCR、OSS 等接入
 - [安全架构方案](./11_security_architecture/SKILL.md)：在设计阶段规划防注入、防 XSS、防越权、鉴权、限流等
+- [前端 UI 组件库选型](./12_frontend_ui_library_selection/SKILL.md)：根据项目类型、端类型和技术栈选择组件库，并输出接入与二次封装策略

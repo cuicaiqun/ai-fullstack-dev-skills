@@ -126,3 +126,68 @@
 - 能后续迭代的，先从 MVP 移除。
 - 每个方案都要给「最小可行版」和「后续增强版」。
 - 每次输出都要提醒我可能返工的点。
+
+
+---
+
+<!-- routing_matrix_enhancement_v1 -->
+## 路由矩阵增强：执行模式、反模式与验证
+
+- 路由 ID：`code_quality.observability_logs`
+- 阶段：代码质量 / `code_quality`
+- 阶段顺序：13
+- 风险等级：`high`
+- 默认执行模式：`strict`
+
+### 必要前置材料
+
+- 接口代码
+- 日志样例
+- 线上问题
+- 代码片段/仓库结构
+- 问题描述
+- 测试结果
+- 角色模型
+- 资源清单
+
+### 反模式 / 禁止事项
+
+- 禁止只做前端路由守卫，不做后端权限校验。
+- 禁止只校验角色，不校验数据归属。
+- 禁止普通用户通过 ID 枚举访问他人数据。
+- 禁止管理后台接口默认开放。
+- 禁止绕过租户、组织、部门、创建人等数据范围。
+- 禁止生产库直接执行未审查 SQL。
+- 禁止没有备份就做破坏性变更。
+- 禁止只写迁移 SQL、不写回滚 SQL。
+
+### 高风险强制门禁
+
+本 Skill 命中高风险或严格模式时，必须额外输出：
+- 风险清单
+- 测试用例
+- 回滚方案
+- 验收标准
+- 日志与监控点
+- 失败处理方案
+
+### 验证命令要求
+
+本 Skill 执行结束时，必须给出本次建议运行的验证命令；如果当前工具无法运行命令，必须明确标注“未实际验证”。
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test`
+- `npm run build`
+- `mysql < sql/database.sql`
+- 执行迁移 SQL 前先在测试库验证
+
+### 后续 Skill 推荐
+
+- `testing.regression_test_suite`
+- `documentation.stage_doc_generator`
+- `security.auth_security_check`
+- `testing.permission_test_cases`
+- `deployment_ops.database_init_backup`
+- `integration_debugging.regression_after_fix`
+

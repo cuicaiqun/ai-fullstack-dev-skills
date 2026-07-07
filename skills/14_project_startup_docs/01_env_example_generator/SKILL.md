@@ -38,3 +38,64 @@ DB_PASSWORD=your_password
 JWT_SECRET=please_change_this_to_a_random_string
 JWT_EXPIRES_IN=7d
 ```
+
+
+---
+
+<!-- routing_matrix_enhancement_v1 -->
+## 路由矩阵增强：执行模式、反模式与验证
+
+- 路由 ID：`project_startup_docs.env_example_generator`
+- 阶段：项目启动文档 / `project_startup_docs`
+- 阶段顺序：15
+- 风险等级：`high`
+- 默认执行模式：`strict`
+
+### 必要前置材料
+
+- 项目名称
+- 技术栈
+- 环境依赖
+- 启动方式
+- 登录方式
+- 用户模型
+- Token/Session 策略
+- 角色模型
+
+### 反模式 / 禁止事项
+
+- 禁止明文存储密码、Token、密钥或验证码。
+- 禁止只做前端登录态判断，不做后端认证。
+- 禁止 Token 永不过期或无刷新/失效策略。
+- 禁止登录失败无限尝试且无风控/限流。
+- 禁止把敏感用户信息直接写入前端可篡改状态。
+- 禁止只做前端路由守卫，不做后端权限校验。
+- 禁止只校验角色，不校验数据归属。
+- 禁止普通用户通过 ID 枚举访问他人数据。
+
+### 高风险强制门禁
+
+本 Skill 命中高风险或严格模式时，必须额外输出：
+- 风险清单
+- 测试用例
+- 回滚方案
+- 验收标准
+- 日志与监控点
+- 失败处理方案
+
+### 验证命令要求
+
+本 Skill 执行结束时，必须给出本次建议运行的验证命令；如果当前工具无法运行命令，必须明确标注“未实际验证”。
+
+- `mysql < sql/database.sql`
+- 执行迁移 SQL 前先在测试库验证
+- 执行回滚 SQL 演练
+
+### 后续 Skill 推荐
+
+- `deployment_ops.env_variables_config`
+- `security.auth_security_check`
+- `testing.permission_test_cases`
+- `testing.regression_test_suite`
+- `deployment_ops.database_init_backup`
+

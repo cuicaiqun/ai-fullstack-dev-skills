@@ -32,6 +32,7 @@
 ## 4. 配置环境变量
 
 ```bash
+cd project
 cp .env.example .env
 ```
 
@@ -40,7 +41,7 @@ cp .env.example .env
 ## 5. 初始化数据库
 
 ```bash
-mysql -u root -p your_database < sql/database.sql
+mysql -u root -p your_database < project/sql/database.sql
 ```
 
 ---
@@ -48,7 +49,7 @@ mysql -u root -p your_database < sql/database.sql
 ## 6. 启动后端
 
 ```bash
-cd backend
+cd project/backend
 npm install
 npm run dev
 ```
@@ -58,7 +59,7 @@ npm run dev
 ## 7. 启动前端
 
 ```bash
-cd frontend
+cd project/frontend
 npm install
 npm run dev
 ```
@@ -67,11 +68,11 @@ npm run dev
 
 ## 8. 编程工具打开方式
 
-用 Cursor / Trae / VS Code / Windsurf 打开项目根目录，并先阅读：
+用 Cursor / Trae / VS Code / Windsurf 打开 `project/` 目录，并先阅读：
 
 ```text
-START_HERE.md
-README.md
-docs/
-sql/database.sql
+project/START_HERE.md
+project/README.md
+project/docs/
+project/sql/database.sql
 ```
