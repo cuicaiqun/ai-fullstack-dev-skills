@@ -1,15 +1,33 @@
-# docs：业务项目文档区
+# 企业知识管理调度系统：项目文档中心
 
-这里用于放置当前真实项目的业务文档。
+- 项目名称：企业知识管理调度系统
+- 当前阶段：需求 / 上线化改造基线
+- 文档路径：project/docs/README.md
+- 版本：v0.1
+- 状态：待确认
+- 创建时间：2026-08-14
+- 最后更新：2026-08-14
+- 负责人：单人全栈开发者
+- AI 协作角色：项目总控 / 产品 / 架构 / 开发 / 测试 / 安全 / 运维
 
-建议文件：
+---
 
-```text
-project/docs/
-├── PRD.md
-├── api.md
-├── database.md
-├── page_structure.md
-├── deployment.md
-└── security_audit.md
-```
+## 文档总览
+
+| 阶段 | 文档 | 用途 | 状态 |
+|---|---|---|---|
+| 需求 | `01_requirements/requirements_brief.md` | 项目上下文、MVP 候选范围、风险 | 待确认 |
+| 架构 | `03_architecture/` | 技术架构、环境和目录约束 | 待生成 |
+| 数据库 | `04_database/`、`../sql/database.sql` | Schema、索引、迁移和回滚 | 待生成 |
+| API | `05_api/` | 接口契约与鉴权要求 | 待生成 |
+| 测试 | `07_testing/` | 测试用例、回归和发布门禁 | 已有 unit_test_entry |
+| 安全 | `08_security/` | 安全审计、权限和数据隔离 | 待生成 |
+| 部署 | `09_deployment/tls_and_secret_rotation.md` | 本地自签 TLS、JWT/库口令轮换 | 已有 |
+
+## 推荐阅读顺序
+
+1. 需求概要与 MVP 范围
+2. 技术架构与 API 契约
+3. 数据库设计与迁移方案
+4. 测试用例与安全审计
+5. 部署、监控和回滚方案

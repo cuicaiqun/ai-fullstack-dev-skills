@@ -1,0 +1,12 @@
+.DS_Store
+.CodeCounter/
+.claude/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.log
+code/tls/*.key
+code/tls/*.pem
+code/tls/server.crt

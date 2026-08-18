@@ -1,0 +1,181 @@
+# Production-oriented stack (P0-3):
+# - Only the API gateway port is published to the host
+# - Datastore ports stay on the internal Docker network
+# - Secrets must be provided via env / env_file (no weak defaults)
+#
+# Local development (publish Neo4j/Chroma/Postgres/... on localhost):
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file python/.env up
+#
+# Production-like:
+#   export NEO4J_PASSWORD=... POSTGRES_PASSWORD=... JWT_SECRET=... AUTH_BOOTSTRAP_ADMIN_PASSWORD=...
+#   docker compose --env-file python/.env.production up
+#   (or set APP_ENV=production + REQUIRE_STRONG_SECRETS=true in env)
+
+services:
+  neo4j:
+    image: neo4j:5.26-community
+    container_name: agenthub-neo4j
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set}
+      NEO4J_PLUGINS: '["apoc"]'
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD", "neo4j", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agenthub
+
+  chromadb:
+    # Keep in sync with code/python chromadb client (API image currently 1.x).
+    image: chromadb/chroma:1.0.0
+    container_name: agenthub-chromadb
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      ANONYMIZED_TELEMETRY: "false"
+    networks:
+      - agenthub
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: agenthub-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_DB: ${POSTGRES_DB:-knowledge}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-knowledge}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agenthub
+
+  redis:
+    image: redis:7-alpine
+    container_name: agenthub-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - agenthub
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.7.0
+    container_name: agenthub-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - agenthub
+
+  kafka:
+    image: confluentinc/cp-kafka:7.7.0
+    container_name: agenthub-kafka
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper
+    networks:
+      - agenthub
+
+  api:
+    build:
+      context: ./python
+      dockerfile: Dockerfile
+    container_name: agenthub-api
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./python/.env
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      REQUIRE_STRONG_SECRETS: ${REQUIRE_STRONG_SECRETS:-true}
+      CHROMA_HOST: chromadb
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: ${NEO4J_USER:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set}
+      NEO4J_READ_USER: ${NEO4J_READ_USER:-}
+      NEO4J_READ_PASSWORD: ${NEO4J_READ_PASSWORD:-}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      STATE_STORE_DSN: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-knowledge}
+      PGVECTOR_DSN: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-knowledge}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      AUTH_BOOTSTRAP_ADMIN_PASSWORD: ${AUTH_BOOTSTRAP_ADMIN_PASSWORD:?AUTH_BOOTSTRAP_ADMIN_PASSWORD must be set}
+      AUTH_DB_PATH: /app/data/auth.db
+      QA_CHECKPOINT_BACKEND: sqlite
+      QA_CHECKPOINT_PATH: /app/data/qa_checkpoints.sqlite
+      INGEST_QUEUE: arq
+      INGEST_ASYNC: "true"
+    depends_on:
+      - neo4j
+      - chromadb
+      - kafka
+      - postgres
+      - redis
+    volumes:
+      - uploads:/app/uploads
+      - auth_data:/app/data
+    networks:
+      - agenthub
+
+  ingest-worker:
+    build:
+      context: ./python
+      dockerfile: Dockerfile
+    container_name: agenthub-ingest-worker
+    command: ["arq", "workers.ingest_worker.WorkerSettings"]
+    env_file:
+      - ./python/.env
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      REQUIRE_STRONG_SECRETS: ${REQUIRE_STRONG_SECRETS:-true}
+      CHROMA_HOST: chromadb
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: ${NEO4J_USER:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set}
+      NEO4J_READ_USER: ${NEO4J_READ_USER:-}
+      NEO4J_READ_PASSWORD: ${NEO4J_READ_PASSWORD:-}
+      STATE_STORE_DSN: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-knowledge}
+      PGVECTOR_DSN: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-knowledge}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      AUTH_BOOTSTRAP_ADMIN_PASSWORD: ${AUTH_BOOTSTRAP_ADMIN_PASSWORD:?AUTH_BOOTSTRAP_ADMIN_PASSWORD must be set}
+      AUTH_DB_PATH: /app/data/auth.db
+      QA_CHECKPOINT_BACKEND: sqlite
+      QA_CHECKPOINT_PATH: /app/data/qa_checkpoints.sqlite
+      INGEST_QUEUE: arq
+    depends_on:
+      - redis
+      - postgres
+      - chromadb
+      - neo4j
+    volumes:
+      - uploads:/app/uploads
+      - auth_data:/app/data
+    networks:
+      - agenthub
+
+networks:
+  agenthub:
+    driver: bridge
+
+volumes:
+  neo4j_data:
+  chroma_data:
+  postgres_data:
+  uploads:
+  auth_data:

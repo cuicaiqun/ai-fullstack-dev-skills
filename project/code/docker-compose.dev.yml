@@ -1,0 +1,54 @@
+# Local development overlay — publishes datastore ports to the host and
+# relaxes the production secret gate so .env.example weak defaults can run.
+#
+# Usage (from code/):
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file python/.env up
+
+services:
+  neo4j:
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+
+  chromadb:
+    ports:
+      - "8000:8000"
+
+  postgres:
+    ports:
+      - "5433:5432"
+
+  redis:
+    # Host already often has Redis on 6379; publish compose Redis on 6380.
+    # Containers still talk to redis:6379 via the Docker network.
+    ports:
+      - "6380:6379"
+
+  kafka:
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+  api:
+    environment:
+      APP_ENV: development
+      REQUIRE_STRONG_SECRETS: "false"
+    user: "0:0"
+    volumes:
+      - ./python:/app
+      - uploads:/app/uploads
+      - auth_data:/app/data
+
+  ingest-worker:
+    environment:
+      APP_ENV: development
+      REQUIRE_STRONG_SECRETS: "false"
+    user: "0:0"
+    volumes:
+      - ./python:/app
+      - uploads:/app/uploads
+      - auth_data:/app/data

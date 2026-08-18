@@ -133,15 +133,19 @@ project/sql/       # 数据库 SQL
 `skills/05_backend/` 和 `skills/06_frontend/` 只是技能说明目录，不是实际项目代码目录。
 
 
-### 1. 先复制总控提示词
+### 1. Cursor 里直接总控（推荐）
 
-打开：
+在仓库根目录打开 Cursor，对 Agent 说「继续推进项目」或「准备部署上线」。
+
+Skill `fullstack-dev-orchestrator` 会扫描 `project/` 进度、自动选角色，并调用 `skills/` 下对应 Skill 动手迭代。不必先粘贴总控提示词。
+
+其它 AI 工具仍可复制：
 
 ```text
 00_MASTER_PROMPT.md
 ```
 
-复制里面的内容给 AI，让 AI 进入“单人全栈开发总控官”模式。
+进入“单人全栈开发总控官”模式。
 
 ---
 

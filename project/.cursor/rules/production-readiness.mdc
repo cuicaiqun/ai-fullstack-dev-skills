@@ -1,0 +1,20 @@
+---
+description: Treat this repo as a production app, not a demo; review for launch risks
+alwaysApply: true
+---
+
+# Production-ready, not demo
+
+This project is an enterprise knowledge system intended to ship as a real online application. Do not optimize for "architecture demo" shortcuts.
+
+## When implementing or reviewing
+
+- Prefer real end-to-end behavior over stubs, in-memory counters, silent `except: pass`, or "works in happy path only".
+- Call out gaps that block production: missing auth, no multi-turn session, sync blocking uploads, health checks that always return ok, secrets in compose, duplicate CDC paths, untested acceptance criteria.
+- For ROADMAP / P0–P1 items: verify code path **and** tests; distinguish unit-mocked green from real acceptance (ingest → retrieve, file watch → auto update, etc.).
+- Do not claim "done" if only the demo path works, duplicate logic remains, or E2E acceptance is unproven.
+- Before launch-oriented changes: surface failure modes (dependency down, empty embeddings, kafka/watchdog off, restart data loss, race on concurrent updates).
+
+## Bar for "fixed"
+
+A fix is production-ready only when: real persistence/query works under default config, failures are visible/non-fatal where designed, and tests cover the regression (prefer behavior over mocks-only when feasible).

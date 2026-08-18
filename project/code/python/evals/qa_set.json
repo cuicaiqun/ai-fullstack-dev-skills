@@ -1,0 +1,29 @@
+{
+  "document": "evals/handbook.md",
+  "cases": [
+    {
+      "id": "travel-deadline",
+      "question": "出差报销需要在几天内提交？",
+      "must_contain_any": ["7", "七"],
+      "expect_source_substr": ["差旅", "报销", "7"]
+    },
+    {
+      "id": "hotel-cap",
+      "question": "一线城市住宿标准上限是多少？",
+      "must_contain_any": ["600"],
+      "expect_source_substr": ["600", "住宿", "一线"]
+    },
+    {
+      "id": "device-sla",
+      "question": "额外显示器工单的处理时限是多久？",
+      "must_contain_any": ["3", "三个", "三"],
+      "expect_source_substr": ["工单", "SLA", "3"]
+    },
+    {
+      "id": "agenthub",
+      "question": "公司知识问答系统叫什么？",
+      "must_contain_any": ["AgentHub"],
+      "expect_source_substr": ["AgentHub", "知识"]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+# Lean extras for unit tests / local CI parity.
+# Install onto Python 3.11 app env (e.g. conda `agents`) AFTER core deps:
+#   pip install -r requirements.txt   # or lean packages listed in scripts/run_unit_tests.sh
+#   pip install -r requirements-test.txt
+#
+# Do NOT pull sentence-transformers/torch here — those belong in the runtime image
+# via requirements.txt and would exhaust small disks during unit-test setup.
+
+pytest-timeout>=2.3.0
+openpyxl>=3.1.0
+langgraph-checkpoint-sqlite>=2.0.0

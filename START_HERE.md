@@ -140,3 +140,19 @@ skill_routing_matrix.json
 建议启动：先执行 `architecture.repo_structure_standard` 确认目录结构，然后进入 `backend.backend_project_init` 和 `frontend.frontend_project_init`。
 
 强制规则：真实代码不要写入 Skills 包的 `skills/` 目录，`skills/05_backend/` 和 `skills/06_frontend/` 只是技能说明，不是业务代码目录。
+
+
+## K. 我在 Cursor 里按 `project/` 进度自动推进
+
+不必先复制总控提示词。在**仓库根目录**打开 Cursor（同时能看到 `skills/` 和 `project/`），然后说：
+
+```text
+继续推进项目
+根据当前进度迭代
+准备部署上线
+按 ROADMAP 做下一刀
+```
+
+Cursor Skill `fullstack-dev-orchestrator` 会先扫描 `project/` 完成度与 ROADMAP，自动切换产品/架构/后端/前端/测试/安全/运维角色，读取 `skills/` 下对应 Skill，再用工具改代码、跑测试、补部署。
+
+入口：`.cursor/skills/fullstack-dev-orchestrator/SKILL.md`
