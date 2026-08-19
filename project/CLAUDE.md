@@ -26,8 +26,15 @@ uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload
 cd python && bash scripts/run_unit_tests.sh
 bash scripts/run_unit_tests.sh tests/test_file.py::test_name   # single test
 bash scripts/e2e_tenant_neo4j.sh                               # optional real Neo4j tenant E2E
-# Or: PYTHON_BIN=/path/to/python3.11 bash scripts/run_unit_tests.sh
+bash scripts/e2e_ingest_storage_fault.sh                       # P0-2: stops/starts chroma+neo4j
+NEO4J_PASSWORD=password bash scripts/create_neo4j_readonly_user.sh
+bash scripts/e2e_neo4j_readonly.sh                             # P0-5 after creating reader
 python scripts/check_p0_3_deploy.py     # P0-3 compose/secrets CI gate
+
+# Local HTTPS (self-signed) from code/:
+# bash scripts/gen_selfsigned_tls.sh
+# docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.tls.yml --env-file python/.env up -d tls
+# curl -k https://127.0.0.1:8443/api/health
 ```
 
 

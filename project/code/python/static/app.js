@@ -45,6 +45,13 @@ const dom = {
   uploadProgress: $('#uploadProgress'),
   docList: $('#docList'),
   refreshStatsBtn: $('#refreshStatsBtn'),
+  adminOpsSection: $('#adminOpsSection'),
+  usersTableBody: $('#usersTableBody'),
+  auditTableBody: $('#auditTableBody'),
+  createUserForm: $('#createUserForm'),
+  userOpsMsg: $('#userOpsMsg'),
+  refreshUsersBtn: $('#refreshUsersBtn'),
+  refreshAuditBtn: $('#refreshAuditBtn'),
 };
 
 function formatApiDetail(detail) {
@@ -97,6 +104,16 @@ function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+function isAdminUser() {
+  return state.user?.role === 'admin';
+}
+
+function updateAdminVisibility() {
+  if (dom.adminOpsSection) {
+    dom.adminOpsSection.classList.toggle('hidden', !isAdminUser());
+  }
+}
+
 async function restoreSession() {
   const epoch = ++state.sessionEpoch;
   if (!state.token) {
@@ -113,6 +130,8 @@ async function restoreSession() {
     state.user = await r.json();
     if (epoch !== state.sessionEpoch) return false;
     showApp();
+    updateAdminVisibility();
+    refreshEmptyLibraryBanner();
     return true;
   } catch {
     if (epoch !== state.sessionEpoch) return false;
@@ -144,6 +163,8 @@ if (dom.loginForm) {
       localStorage.setItem(TOKEN_KEY, state.token);
       showApp();
       checkHealth();
+      updateAdminVisibility();
+      refreshEmptyLibraryBanner();
     } catch (err) {
       if (dom.loginError) {
         dom.loginError.textContent = err.message || '登录失败';
@@ -216,9 +237,60 @@ dom.tabs.forEach(btn => {
     dom.panels[tab].classList.remove('animate-fade-in-up');
     void dom.panels[tab].offsetWidth;
     dom.panels[tab].classList.add('animate-fade-in-up');
-    if (tab === 'dashboard') loadStats();
+    if (tab === 'qa') refreshEmptyLibraryBanner();
+    if (tab === 'dashboard') {
+      loadStats();
+      if (isAdminUser()) {
+        loadUsers();
+        loadAuditEvents();
+      }
+    }
   });
 });
+
+/* ════════════════════ Empty Library Banner ════════════════════ */
+async function fetchAdminStats() {
+  try {
+    const r = await apiFetch(`${API}/admin/stats`);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+function isLibraryEmpty(stats) {
+  if (!stats) return false;
+  const vectors = stats.vector_store?.total_vectors ?? 0;
+  const entities = stats.knowledge_graph?.total_entities ?? 0;
+  return vectors === 0 && entities === 0;
+}
+
+function ensureEmptyLibraryBanner() {
+  let banner = document.getElementById('emptyLibraryBanner');
+  if (banner) return banner;
+  banner = document.createElement('div');
+  banner.id = 'emptyLibraryBanner';
+  banner.className = 'qa-callout qa-callout--info hidden';
+  banner.innerHTML =
+    '<span>知识库暂无文档，请先上传后再提问以获得准确回答。</span>' +
+    '<button type="button" class="qa-callout-link" data-goto-upload>前往文档入库</button>';
+  banner.querySelector('[data-goto-upload]')?.addEventListener('click', () => {
+    document.querySelector('[data-tab="upload"]')?.click();
+  });
+  dom.panels.qa.insertBefore(banner, dom.chatContainer);
+  return banner;
+}
+
+function updateEmptyLibraryBanner(show) {
+  const banner = ensureEmptyLibraryBanner();
+  banner.classList.toggle('hidden', !show);
+}
+
+async function refreshEmptyLibraryBanner() {
+  const stats = await fetchAdminStats();
+  updateEmptyLibraryBanner(isLibraryEmpty(stats));
+}
 
 /* ════════════════════ Q&A ════════════════════ */
 dom.qaSendBtn.addEventListener('click', sendQuestion);
@@ -229,6 +301,13 @@ dom.qaInput.addEventListener('keydown', e => {
 async function sendQuestion() {
   const question = dom.qaInput.value.trim();
   if (!question || state.asking) return;
+
+  const stats = await fetchAdminStats();
+  if (isLibraryEmpty(stats)) {
+    updateEmptyLibraryBanner(true);
+    dom.qaInput.value = question;
+    return;
+  }
 
   state.asking = true;
   dom.qaSendBtn.disabled = true;
@@ -334,6 +413,17 @@ function appendMessage(role, content, meta) {
     // Convert newlines to <br>, support simple markdown-like bold
     const lines = escapeHtml(content).split('\n');
     bubble.innerHTML = lines.map(line => `<p>${line || '&nbsp;'}</p>`).join('');
+  }
+
+  if (meta && meta.grounded === false) {
+    const warn = document.createElement('div');
+    warn.className = 'qa-callout qa-callout--warning';
+    const notes = meta.groundingNotes?.length
+      ? meta.groundingNotes.map((n) => escapeHtml(n)).join('；')
+      : '';
+    warn.innerHTML = '<strong>答案可能不可信，请谨慎使用</strong>' +
+      (notes ? `<span class="qa-callout-notes">${notes}</span>` : '');
+    body.appendChild(warn);
   }
 
   body.appendChild(bubble);
@@ -470,6 +560,7 @@ async function uploadFiles(fileList) {
 
   setTimeout(() => progress.classList.remove('show'), 6000);
   dom.fileInput.value = '';
+  refreshEmptyLibraryBanner();
 }
 
 async function pollIngestTask(taskId, fileName, progressEl) {
@@ -523,9 +614,8 @@ async function loadStats() {
   });
 
   try {
-    const r = await apiFetch(`${API}/admin/stats`);
-    if (!r.ok) throw new Error('Failed');
-    const d = await r.json();
+    const d = await fetchAdminStats();
+    if (!d) throw new Error('Failed');
 
     animateValue($('#statVectors'), d.vector_store?.total_vectors ?? 0);
     animateValue($('#statEntities'), d.knowledge_graph?.total_entities ?? 0);
@@ -568,6 +658,133 @@ function animateValue(el, target) {
 }
 
 dom.refreshStatsBtn.addEventListener('click', loadStats);
+
+/* ════════════════════ Admin: Users & Audit (P1-6) ════════════════════ */
+function showUserOpsMsg(text, isError = false) {
+  if (!dom.userOpsMsg) return;
+  dom.userOpsMsg.textContent = text;
+  dom.userOpsMsg.classList.toggle('hidden', !text);
+  dom.userOpsMsg.classList.toggle('admin-ops-msg--error', isError);
+}
+
+function formatTs(ts) {
+  if (!ts) return '--';
+  try {
+    return new Date(ts * 1000).toLocaleString('zh-CN');
+  } catch {
+    return String(ts);
+  }
+}
+
+async function loadUsers() {
+  if (!isAdminUser() || !dom.usersTableBody) return;
+  dom.usersTableBody.innerHTML = '<tr><td colspan="5">加载中…</td></tr>';
+  try {
+    const r = await apiFetch(`${API}/auth/users`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    const users = data.users || [];
+    if (!users.length) {
+      dom.usersTableBody.innerHTML = '<tr><td colspan="5">暂无用户</td></tr>';
+      return;
+    }
+    dom.usersTableBody.innerHTML = users.map((u) => {
+      const disabled = u.disabled ? '已禁用' : '正常';
+      const canToggle = u.user_id !== state.user?.user_id;
+      const btn = canToggle
+        ? `<button type="button" class="btn btn-sm admin-toggle-user" data-user-id="${escapeHtml(u.user_id)}" data-disabled="${u.disabled ? '0' : '1'}">${u.disabled ? '启用' : '禁用'}</button>`
+        : '<span class="admin-muted">当前用户</span>';
+      return `<tr>
+        <td>${escapeHtml(u.username)}</td>
+        <td>${escapeHtml(u.role)}</td>
+        <td>${escapeHtml(u.tenant_id || '')}</td>
+        <td>${disabled}</td>
+        <td>${btn}</td>
+      </tr>`;
+    }).join('');
+    dom.usersTableBody.querySelectorAll('.admin-toggle-user').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const userId = btn.dataset.userId;
+        const disabled = btn.dataset.disabled === '1';
+        try {
+          const r = await apiFetch(`${API}/auth/users/${userId}/disabled`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ disabled }),
+          });
+          if (!r.ok) {
+            const err = await r.json().catch(() => ({}));
+            throw new Error(formatApiDetail(err.detail) || `HTTP ${r.status}`);
+          }
+          showUserOpsMsg(disabled ? '用户已禁用' : '用户已启用');
+          await loadUsers();
+          await loadAuditEvents();
+        } catch (err) {
+          showUserOpsMsg(err.message || '操作失败', true);
+        }
+      });
+    });
+  } catch (err) {
+    dom.usersTableBody.innerHTML = `<tr><td colspan="5">加载失败：${escapeHtml(err.message)}</td></tr>`;
+  }
+}
+
+async function loadAuditEvents() {
+  if (!isAdminUser() || !dom.auditTableBody) return;
+  dom.auditTableBody.innerHTML = '<tr><td colspan="5">加载中…</td></tr>';
+  try {
+    const r = await apiFetch(`${API}/auth/audit?limit=30`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    const events = data.events || [];
+    if (!events.length) {
+      dom.auditTableBody.innerHTML = '<tr><td colspan="5">暂无审计记录</td></tr>';
+      return;
+    }
+    dom.auditTableBody.innerHTML = events.map((e) => {
+      const ok = e.success ? '成功' : '失败';
+      const detail = e.detail ? JSON.stringify(e.detail) : '';
+      return `<tr>
+        <td>${formatTs(e.ts)}</td>
+        <td>${escapeHtml(e.action || '')}</td>
+        <td>${escapeHtml(e.actor_username || '')}</td>
+        <td>${ok}</td>
+        <td class="admin-detail" title="${escapeHtml(detail)}">${escapeHtml(detail.slice(0, 80))}${detail.length > 80 ? '…' : ''}</td>
+      </tr>`;
+    }).join('');
+  } catch (err) {
+    dom.auditTableBody.innerHTML = `<tr><td colspan="5">加载失败：${escapeHtml(err.message)}</td></tr>`;
+  }
+}
+
+if (dom.createUserForm) {
+  dom.createUserForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!isAdminUser()) return;
+    showUserOpsMsg('');
+    const username = ($('#newUsername')?.value || '').trim();
+    const password = $('#newPassword')?.value || '';
+    const role = $('#newUserRole')?.value || 'member';
+    try {
+      const r = await apiFetch(`${API}/auth/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, role }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(formatApiDetail(data.detail) || `HTTP ${r.status}`);
+      dom.createUserForm.reset();
+      showUserOpsMsg(`已创建用户 ${username}`);
+      await loadUsers();
+      await loadAuditEvents();
+    } catch (err) {
+      showUserOpsMsg(err.message || '创建失败', true);
+    }
+  });
+}
+
+dom.refreshUsersBtn?.addEventListener('click', loadUsers);
+dom.refreshAuditBtn?.addEventListener('click', loadAuditEvents);
 
 /* ════════════════════ Keyboard Shortcuts ════════════════════ */
 document.addEventListener('keydown', e => {

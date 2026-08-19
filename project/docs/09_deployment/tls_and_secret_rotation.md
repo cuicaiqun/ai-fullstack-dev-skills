@@ -1,7 +1,7 @@
 # P0-3：本地自签 TLS 与密钥轮换 / 回滚演练
 
 - 文档路径：`project/docs/09_deployment/tls_and_secret_rotation.md`
-- 最后更新：2026-08-15
+- 最后更新：2026-08-19
 - 范围：本地 / 单机演示；正式 KMS/集群 Ingress 仍属后续
 
 ---
@@ -28,7 +28,7 @@ curl -k https://127.0.0.1:8443/api/health
 
 验收：
 
-- [ ] `https://127.0.0.1:8443/api/health` 返回 JSON（允许自签警告）
+- [x] `https://127.0.0.1:8443/api/health` 返回 JSON（允许自签警告）— **08-19 已验证**
 - [ ] 数据面端口策略仍按生产 compose：仅网关对外（本机 dev overlay 可例外）
 
 回滚：`docker compose ... stop tls` 后继续只用 `http://127.0.0.1:8080`。
@@ -58,9 +58,16 @@ curl -k https://127.0.0.1:8443/api/health
 
 验收清单：
 
-- [ ] 轮换后旧 JWT 立即不可用
-- [ ] 新登录可用
-- [ ] 回滚后可用备份密钥重新签发
+- [x] 轮换后旧 JWT 立即不可用 — **08-19 `drill_jwt_rotation.sh` 验证**
+- [x] 新登录可用 — **08-19 验证**
+- [x] 回滚后可用备份密钥重新签发 — **08-19 验证**
+
+自动化：
+
+```bash
+cd project/code/python
+bash scripts/drill_jwt_rotation.sh
+```
 
 ---
 

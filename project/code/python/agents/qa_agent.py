@@ -17,6 +17,7 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from config import settings
 from observability.llm import build_chat_openai
 
 MAX_HISTORY_TURNS = 6  # 最多保留最近 6 轮（user+assistant）
@@ -202,6 +203,13 @@ class QAAgent:
         if not grounding.grounded:
             confidence = min(confidence, 0.35)
             reasoning = list(reasoning) + [f"引用校验未通过: {','.join(grounding.notes)}"]
+            if settings.qa_refuse_ungrounded:
+                answer_text = (
+                    "抱歉，当前回答无法通过引用校验，系统不能将其作为可信依据返回。"
+                    "请上传相关文档后重试，或换一种问法。"
+                )
+                confidence = min(confidence, 0.05)
+                reasoning = list(reasoning) + ["已强制拒答: grounded=false"]
 
         return QAResult(
             question=question,

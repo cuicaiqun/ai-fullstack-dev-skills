@@ -115,6 +115,7 @@
       <p class="chat-input-hint">
         <kbd>Ctrl</kbd> + <kbd>K</kbd> 快速聚焦 · Enter 发送
       </p>
+      <p class="qa-disclaimer">AI 回答仅供参考，请以原文档与 grounding 状态为准；不可信答案将显式警示。</p>
     </div>
   </section>
 
@@ -201,6 +202,49 @@
         刷新数据
       </button>
     </div>
+
+    <div id="adminOpsSection" class="admin-ops hidden">
+      <div class="admin-ops-block">
+        <div class="admin-ops-header">
+          <h3 class="admin-ops-title">用户管理</h3>
+          <button type="button" class="btn btn-sm" id="refreshUsersBtn">刷新</button>
+        </div>
+        <form id="createUserForm" class="admin-user-form">
+          <input id="newUsername" class="admin-input" type="text" placeholder="用户名" required minlength="2">
+          <input id="newPassword" class="admin-input" type="password" placeholder="密码（≥6位）" required minlength="6">
+          <select id="newUserRole" class="admin-input" aria-label="角色">
+            <option value="member">member</option>
+            <option value="viewer">viewer</option>
+            <option value="admin">admin</option>
+          </select>
+          <button type="submit" class="btn btn-primary btn-sm">创建用户</button>
+        </form>
+        <p id="userOpsMsg" class="admin-ops-msg hidden"></p>
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="usersTable">
+            <thead>
+              <tr><th>用户名</th><th>角色</th><th>租户</th><th>状态</th><th>操作</th></tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="admin-ops-block">
+        <div class="admin-ops-header">
+          <h3 class="admin-ops-title">审计日志</h3>
+          <button type="button" class="btn btn-sm" id="refreshAuditBtn">刷新</button>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="auditTable">
+            <thead>
+              <tr><th>时间</th><th>动作</th><th>操作者</th><th>结果</th><th>详情</th></tr>
+            </thead>
+            <tbody id="auditTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- ═══════════════ Footer ═══════════════ -->
@@ -216,6 +260,6 @@
 
 </div>
 
-<script src="/static/app.js?v=p12-1"></script>
+<script src="/static/app.js?v=p16-2"></script>
 </body>
 </html>

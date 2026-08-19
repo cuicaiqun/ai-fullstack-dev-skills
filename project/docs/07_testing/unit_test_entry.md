@@ -32,9 +32,15 @@ pip install -r requirements-test.txt
 
 ## 验收
 
-- 2026-08-15：`./scripts/run_unit_tests.sh` → **99 passed**。
+- 2026-08-19：`./scripts/run_unit_tests.sh` → **108 passed, 8 skipped**。
+- 2026-08-19：`bash scripts/e2e_neo4j_readonly.sh` → **2 passed**。
+- 2026-08-19：`bash scripts/drill_jwt_rotation.sh` → **JWT 轮换/回滚演练通过**。
+- 2026-08-19：`bash scripts/e2e_cdc_watch_kafka.sh` → watch **2 passed**；Kafka **1 passed**（`RUN_KAFKA_E2E=1`）。
+- 2026-08-19：`python scripts/check_alerts.py` → 本地门禁 OK（核心 vector/state；kg 降级为 WARN）。
 
 ## 断存储 E2E（P0-2，会短暂 stop 容器）
+
+覆盖：入库时 Chroma/Neo4j 断一端不得 ready；删除时断一端须 `success=False`、检索 deny、另一端尽力清掉。
 
 ```bash
 cd project/code/python

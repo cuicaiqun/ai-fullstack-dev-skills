@@ -46,10 +46,47 @@
 ### 下一执行顺序
 
 1. ~~建立固定 Python 环境和可超时的测试入口~~ → **08-15 已完成（99 passed）**。
-2. ~~P0-1 真实双租户 E2E~~ → **08-15 已通过**；剩余 **Neo4j 只读账户**（并入 P0-5）。
-3. 完成 P0-2：~~检索 ready 过滤~~（代码+单测已落地）+ **跨存储失败联调**（删除一致性回归）。
-4. 完成 P0-3：TLS/密钥轮换/部署回滚**演练清单与最小实现**（不追求一次上 K8s）。
-5. P1-6 薄增强（空库引导 / 不可信答案警示）；完整企业工作台延后。
+2. ~~P0-1 真实双租户 E2E~~ → **08-15 已通过**；P0-5 只读账户：**代码/脚本已落地**，需本机 `create_neo4j_readonly_user.sh` + `e2e_neo4j_readonly.sh`。
+3. ~~P0-2 ready 过滤 + 断存储/删除一致性 E2E~~ → **08-18 `e2e_ingest_storage_fault.sh` 5 passed**；完整 outbox/两阶段仍延后。
+4. ~~P0-3 本地 TLS/轮换清单~~ → **08-19 HTTPS + deploy check + `drill_jwt_rotation.sh` 已通过**。
+5. ~~P1-6 薄增强~~ → **08-19 已落地**（含 admin 用户/审计 UI）。
+6. ~~P1-1 watch/Kafka E2E~~ → **08-19 watch 2 passed + Kafka 1 passed**。
+7. ~~P1-3 告警门禁~~ → **08-19 `check_alerts.py` + Prometheus 规则 + 文档**。
+8. ~~P2 grounded 强制拒答~~ → **08-19 `qa_refuse_ungrounded` 默认开启**。
+
+### 2026-08-19 执行记录（MultiAgent：P0-5 / P0-3 / P1-6）
+
+**角色：** 安全工程师 + 运维 + 前端工程师（并行）
+
+**已完成：**
+
+1. **P0-5 Neo4j 只读账户 E2E**
+   - `KnowledgeGraphService._neo4j_session`：读驱动使用 `READ_ACCESS`（Community 无 RBAC 时的替代）。
+   - `create_neo4j_readonly_user.sh`：密码幂等同步；Community 跳过 `GRANT ROLE reader` 并提示。
+   - **验收：** `bash scripts/e2e_neo4j_readonly.sh` → **2 passed**（拒写 + 只读检索）。
+
+2. **P0-3 本地 TLS / 部署门禁**
+   - **验收：** `curl -k https://127.0.0.1:8443/api/health` 返回 JSON（TLS 终止正常；依赖 degraded 与 vector_store 状态有关）。
+   - **验收：** `python scripts/check_p0_3_deploy.py` → **OK**。
+   - **08-19 续：** `bash scripts/drill_jwt_rotation.sh` → 旧 JWT 401 / 新登录 200 / 回滚 200。
+
+3. **P1-6 空库引导 + 不可信答案警示**
+   - `static/app.js`：空库时 QA 面板展示引导横幅（链到上传 Tab）；`grounded=false` 时答案上方强警示。
+   - **续（同日晚）：** 空库拦截提问；admin 用户管理/审计看板；`GET /api/auth/users`；合规免责声明。
+   - **仍缺：** 完整企业工作台；~~后端强制拒答（P2）~~ → **08-19 已落地 `qa_refuse_ungrounded`**。
+
+**全量单测：** `run_unit_tests.sh` → **114 passed, 11 skipped**（08-19 晚）。
+
+### 2026-08-19 执行记录（MultiAgent：P0-3 JWT / P1-1 / P1-3 / P2）
+
+**已完成：**
+
+1. **P0-3 JWT 轮换演练** — `scripts/drill_jwt_rotation.sh`：旧 token 401 → 新登录 200 → 回滚 200。
+2. **P1-1 CDC E2E** — `e2e_cdc_watch_kafka.sh`：watchdog 创建/抑制 **2 passed**；Kafka produce/consume/process **1 passed**。
+3. **P1-3 告警** — `check_alerts.py`（health 核心依赖 + metrics `dependency_up`）；`prometheus/alerts.yml`；`docs/09_deployment/alerting.md`。
+4. **P2 强制拒答** — `settings.qa_refuse_ungrounded=True`；`QAAgent` grounded=false 时返回拒答模板。
+
+**下一刀：** P1-4 备份恢复演练 → P1-5 供应链 → 真实集群 Kafka 重平衡 E2E。
 
 ### 2026-08-15 执行记录（测试入口 + P0-2 ready 过滤）
 
@@ -67,7 +104,7 @@
    - `StateStore.document_search_gate`：`allow|deny|unknown`（无记录=遗留放行）。
    - `VectorStoreService` 搜索后过滤；`api/main.py` lifespan 注入 gate。
    - 单测：`test_is_document_searchable_*` / `test_search_filters_pending_failed_and_state_store`。
-   - **仍缺：** 真实 Chroma+Neo4j 断一端联调；图谱侧未按 doc ready 过滤。
+   - **仍缺：** 真实 docker 断存储 E2E（脚本已覆盖入库失败 + 删除一致性，待本机跑绿）。
 
 **续：P0-1 真实 Neo4j 双租户 E2E**
 
@@ -85,17 +122,17 @@
 |------|------|----------|
 | 文档入库 | PDF/图片/Excel/Markdown 解析 → 分块 | ⚠️ 解析可跑；**上传已做 UUID/白名单/限额**（P0-0）；杀毒与解析资源配额仍可选 |
 | 知识抽取 | LLM NER + 关系 + 事件 → 三元组 | ✅ 真可跑；另有别名/相似度 `resolve_entities`（薄切片） |
-| 知识图谱 | Neo4j 实体/关系，version + 索引 | ⚠️ 可写入/查询；**MERGE (tenant_id,name)**；**真实双租户 E2E 已通过**；缺只读账户 / 历史节点迁移 |
-| 向量检索 | Chroma HTTP 真写入/查询 | ✅ `HttpClient` 路径已验收；pgvector `delete_by_doc_id` 已实现；**检索已接 document_search_gate（P0-2）**；断存储联调仍缺 |
+| 知识图谱 | Neo4j 实体/关系，version + 索引 | ⚠️ MERGE (tenant_id,name)；双租户 E2E 已通过；**只读账户 E2E 08-19 2 passed**（Community 用 READ_ACCESS） |
+| 向量检索 | Chroma HTTP 真写入/查询 | ✅ `HttpClient` 路径已验收；pgvector `delete_by_doc_id` 已实现；**检索已接 document_search_gate（P0-2）**；断存储删除 fail-closed，**08-18 E2E 5 passed** |
 | GraphRAG | 向量 + 子图 + 路径 + 社区 + 重排 | ⚠️ 代码存在；图谱检索已注入 tenant；QA 已停自由 Cypher（P0-5）；固定加权待验证（P2） |
-| 问答 | 意图→改写→混合检索→生成 | ⚠️ 主流程 + 多轮 + `grounded` 字段；UI 已展示 grounding 标签；弱校验、空库体验差、拒答未强制 |
+| 问答 | 意图→改写→混合检索→生成 | ⚠️ 主流程 + 多轮 + `grounded` 字段；**空库引导 + 不可信答案强警示（P1-6）**；拒答未强制 |
 | 异步入库 | 202 + task_id + 本地/arq 队列 | ✅ 默认 async；任务状态 API 与单测已绿（全量 pytest 环境待恢复） |
 | 增量更新 | Watchdog / Kafka → `process_change` | ⚠️ **接线与真落库已完成**；抑制双跑/单飞/Kafka DLQ 有单测（P1-1）；**真实集群 E2E 仍缺** |
 | 认证 ACL | JWT + 文档 ACL | ⚠️ 向量/图谱隔离 + token 撤销/审计/Sqlite 会话（P0-4）；无 SSO/多副本 HA |
 | 可观测性 | JSON 日志 / request-id / metrics / health | ⚠️ 基础已通；缺 SLO、告警、演练；内存 state 降级仍可能显示可用 |
 | 多轮对话 | `session_id` + checkpointer | ⚠️ 默认 `AsyncSqliteSaver` 持久；多副本需共享盘/Postgres checkpointer |
-| 测试 / CI | pytest + GitHub Actions | ⚠️ **08-15：`run_unit_tests.sh` → 99 passed**；CI 已对齐脚本；缺真实依赖 E2E |
-| 前端 | 静态演示 UI | ⚠️ 已有 logout 撤销、grounded 标签、上传可见性；仍缺用户管理/审计看板/空库引导/企业工作台 |
+| 测试 / CI | pytest + GitHub Actions | ⚠️ **08-19：`run_unit_tests.sh` → 108 passed / 8 skipped**；`e2e_neo4j_readonly.sh` → **2 passed**；`e2e_ingest_storage_fault.sh` → **5 passed** |
+| 前端 | 静态演示 UI | ⚠️ **P1-6 薄切片已齐**：空库引导/拦截、grounded 强警示、用户管理+审计看板（admin）；完整企业工作台仍延后 |
 | 落地就绪度 | 安全可售 · 运维可扛 · 业务可信 | ❌ 可内部演示；未过安全隔离与多租户真实联调前不当正式产品 |
 
 ---
@@ -116,7 +153,7 @@
 | 可观测性基础 | ⚠️ | 结构化日志、`X-Request-ID`、`/metrics`、live health→核心依赖 down 时 503 |
 | 异步入库 202 + 任务查询 | ✅ | 默认 `INGEST_ASYNC`；`/api/ingest/tasks`；前端会轮询 |
 | P0 上传/密钥门禁薄切片 | ⚠️ | P0-0/P0-3 核心单测与 compose 门禁已有；AV/TLS/KMS 仍缺 |
-| P1-6 UI 薄切片 | ⚠️ | grounded 标签 + 上传可见性 + logout 撤销；用户/审计/空库引导仍缺 |
+| P1-6 UI 薄切片 | ⚠️ | grounded/可见性/空库引导/强警示/用户管理/审计看板（admin）；强制拒答仍 P2 |
 | P2 韧性薄切片 | ⚠️ | LLM timeout/retry、空 key→503、QA 限流、空检索拒答、`grounded` 字段、实体对齐、CI、`eval_rag_recall.py`；**拒答未强制** |
 
 ---
@@ -131,13 +168,13 @@
 | 风险 | 项 | 状态 |
 |------|----|------|
 | 租户隔离不闭环 | P0-1 | ⚠️ 图谱 MERGE/读写已带 tenant；缺真实 Neo4j 双租户 E2E / 平台管理员模型 |
-| LLM 自由 Cypher | P0-5 | ⚠️ QA/GraphRAG 已改参数化工具；`execute_cypher` 拒写/拒无租户；只读库账户仍缺 |
+| LLM 自由 Cypher | P0-5 | ⚠️ QA/GraphRAG 已改参数化工具；只读 E2E **08-19 2 passed**；Community 无 RBAC，靠 READ_ACCESS |
 | 上传路径/资源未收口 | P0-0 | ⚠️ 核心路径/限额/魔数已修；AV/cgroup 可选 |
-| 入库/更新非原子；增量 ACL/图谱漂移 | P0-2 | ⚠️ 失败不得 ready + ACL/pgvector 删除；跨存储两阶段仍薄 |
-| 默认密钥 + 端口暴露 | P0-3 | ⚠️ 启动门禁 + compose 仅网关；TLS/KMS 仍缺 |
+| 入库/更新非原子；增量 ACL/图谱漂移 | P0-2 | ⚠️ 失败不得 ready + 删除先 deny 再双清；跨存储两阶段/outbox 仍薄 |
+| 默认密钥 + 端口暴露 | P0-3 | ⚠️ 启动门禁 + compose 仅网关；**本机 HTTPS health + deploy check 08-19 通过**；KMS/公网证书仍缺 |
 | 身份/会话不持久 | P0-4 | ⚠️ 撤销/审计/SQLite 会话已落地；SSO/多副本 HA 仍缺 |
 
-**现在就该做（已按 08-15 校准）：** (0) 固定测试环境并复跑全量 pytest → (1) P0-1/P0-5 **剩余真实 E2E + 只读账户** → (2) P0-2 **ready 过滤 + 断存储联调** → (3) P0-3 TLS/轮换演练清单；P0-0/P0-4 核心薄切片已落地，不挡本版主线。
+**现在就该做（已按 08-19 校准）：** P1-1 真实 Kafka/watch E2E → P1-3 告警 → P0-4/P0-1 平台管理员模型；P0-3 JWT 轮换须人工演练一次。
 
 ### 第二层 — 运维扛不住 → P1
 
@@ -153,10 +190,10 @@
 
 | 风险 | 项 | 状态 |
 |------|----|------|
-| 演示台 UI / 可信展示 | P1-6 | ⚠️ grounded 标签+可见性已有；空库引导/强警示/工作台仍缺 |
+| 演示台 UI / 可信展示 | P1-6 | ⚠️ 空库引导/拦截、grounded 强警示、admin 用户+审计 UI 已落地；强制拒答/工作台仍缺 |
 | 无知识治理审批流 | P2 文档生命周期 | ❌ |
 | 中国区模型路由 | P1-7 | ⚠️ 可接兼容网关；无多模型/租户额度 |
-| 对外过度承诺 | P1-6 | ❌ 需人工校准文档与对外叙述 |
+| 对外过度承诺 | P1-6 | ⚠️ UI 已加合规免责声明；对外文档叙述仍须人工校准 |
 
 ### 第四层 — 质量 → P2
 
@@ -192,12 +229,12 @@
 - QA / GraphRAG：`search_entities` / `get_neighbors` / `shortest_paths` 强制 tenant；跨租户上下文丢弃。
 - `execute_cypher` 默认拒写、拒无 `$tenant_id` 谓词（配合 P0-5）。
 
-**仍缺：** 真实 Neo4j 两租户同名实体联调；平台 vs 租户管理员跨租查询模型；历史无 `tenant_id` 节点迁移脚本。
+**仍缺：** 平台 vs 租户管理员跨租查询模型；历史无 `tenant_id` 节点迁移脚本。
 
 **验收：**
 - ✅ 单测：同名实体不同 tenant 的 MERGE 参数隔离；邻居/搜索/删除带 tenant；QA 同租户图谱保留、跨租户丢弃（`tests/test_knowledge_graph_tenant.py` / `test_qa_acl.py`）。
 - ✅ 真实 Neo4j 双租户 E2E（`e2e_tenant_neo4j.sh`，08-15）。
-- ❌ Neo4j 只读库账户未落地。
+- ❌ Neo4j 只读库账户 **E2E 08-19 已通过**（见 P0-5）。
 
 ### P0-2 跨存储入库原子性与可恢复性
 **状态：⚠️ 部分完成 → 失败不得 ready + 增量 ACL/pgvector 删除已落地（跨存储两阶段提交仍薄）**
@@ -209,14 +246,23 @@
 - 增量更新：回填/创建文档 ACL 并写入 chunk metadata；MODIFY 清旧后重写；失败 → index failed。
 - `pgvector` `delete_by_doc_id` 按 `cmetadata.doc_id` / id 前缀真删除（不再恒 0）。
 
-**仍缺：** 真正的跨存储事务/outbox；MODIFY「先写新版本再切 active 再删旧」的零空洞窗口；真实 Chroma+Neo4j 断一端联调；图谱命中未按 doc ready 过滤。
+**仍缺：** 真正的跨存储事务/outbox；MODIFY「先写新版本再切 active 再删旧」的零空洞窗口。
 
-**08-15 增量：** 向量检索已强制 `document_search_gate`（state ready 覆盖陈旧 pending metadata；无记录走 metadata / 遗留放行）。
+**08-15 增量：** 向量检索已强制 `document_search_gate`。
+
+**08-17 增量：** 图谱检索按 `source`/`start_source` 走同一门控（邻居行不用实体名当 source）；`get_document_index_by_source`；单测 `test_graph_hits_filter_pending_source_not_entity_name`。
+
+**08-18 增量（删除一致性）：**
+- `delete_by_doc_id` / `delete_by_source` 在存储未连接时改为失败，禁止静默 `return 0`。
+- 删除/修改先把门控打成 deny，再尽力清向量+图谱；任一侧失败则 `success=False`（可重试），修改失败不再写新版本。
+- 单测：`test_delete_vector_fault_still_purges_graph_and_denies_search` 等。
+- **08-18 真实联调：** `bash scripts/e2e_ingest_storage_fault.sh` → **5 passed**（入库断一端不得 ready；删除断 Chroma/Neo4j 一端须失败且检索 deny）。
 
 **验收：**
 - ✅ 单测：存储失败不得 ready；文档版本状态；增量 ACL stamp；pgvector 删除走后端路径。
 - ✅ 单测：非 ready / failed metadata / 遗留文档检索门控。
-- ❌ 未做真实 Chroma+Neo4j 断一端的联调空洞窗口验证。
+- ✅ 单测：删除时一端失败仍清另一端 + 检索 deny；修改时图谱清理失败不得写入新版本。
+- ✅ 08-18 E2E：`e2e_ingest_storage_fault.sh` → 5 passed（入库空洞 + 删除一致性）。
 
 ### P0-3 生产部署密钥与网络边界
 **状态：⚠️ 部分完成 → 启动门禁 + compose 默认只暴露网关已落地（TLS/密钥托管仍缺）**
@@ -227,11 +273,15 @@
 - `docker-compose.dev.yml`：本地叠加发布 DB 端口并关闭强密钥门禁。
 - API 镜像非 root（uid 10001）；CI 跑 `scripts/check_p0_3_deploy.py` + 单测。
 
-**仍缺：** 正式 TLS 终止、密钥托管（KMS/Secrets Manager）、生产 Ingress 仅暴露网关的集群清单。
+**仍缺：** 正式公网证书 / KMS / 集群 Ingress。本地自签 TLS 与轮换 runbook 已提供。
+
+**08-17 增量：** `docker-compose.tls.yml` + `scripts/gen_selfsigned_tls.sh` + `docs/09_deployment/tls_and_secret_rotation.md`；`check_p0_3_deploy.py` 校验 TLS overlay 不暴露数据端口。
 
 **验收：**
-- ✅ 生产模式弱配置 → 进程拒绝启动（单测）；生产 compose 无 7474/7687/8000/5433/6379/9092 宿主机映射（CI/单测）。
-- ❌ 未做集群级 TLS 与外部密钥轮转演练。
+- ✅ 生产模式弱配置 → 进程拒绝启动（单测）；生产 compose 无数据端口宿主机映射（CI/单测）。
+- ✅ 本地 HTTPS：`curl -k https://127.0.0.1:8443/api/health` 返回 JSON（**08-19 本机验证**）。
+- ⚠️ JWT/DB 口令轮换演练清单（文档 §2–3）须人工勾选一次。
+- ❌ 集群级 TLS 与外部 KMS 仍延后。
 
 ### P0-4 认证、审计与会话的持久化
 **状态：⚠️ 部分完成 → 禁用立即生效 / 撤销 / 审计 / SQLite checkpointer 已落地（SSO/MFA/HA 仍缺）**
@@ -253,29 +303,36 @@
 
 **已修复：** `QAAgent._graph_retrieve` 不再生成/执行自由 Cypher；改用租户参数化 search/neighbors/paths。GraphRAG 路径检索同。`execute_cypher` 拒写与无 tenant 查询。
 
-**仍缺：** Neo4j 只读账户；AST/多语句白名单（若保留任意 Cypher API）；注入用例对真实驱动 E2E。
+**08-17 增量：** `KnowledgeGraphService` 读写 driver 拆分（`NEO4J_READ_USER`）；`create_neo4j_readonly_user.sh`；compose 注入只读账号；E2E `e2e_neo4j_readonly.sh`。
+
+**08-19 增量：** 读驱动 session 使用 `READ_ACCESS`（Community 无 RBAC）；建用户脚本密码幂等；**E2E 2 passed**。
+
+**仍缺：** AST/多语句白名单（若保留任意 Cypher API）；Enterprise 版 Neo4j RBAC 可选。
 
 **验收：**
 - ✅ QA 路径单测断言不调用 `execute_cypher`；写 Cypher / 无租户谓词 → `PermissionError`。
-- ❌ 只读库账户与完整注入矩阵未验收。
+- ✅ 只读库账户 E2E：**08-19 `e2e_neo4j_readonly.sh` → 2 passed**。
 ---
 
 ## P1 — 可靠运行与合规运营
 
 ### P1-1 可靠异步任务与 CDC 消费
-**状态：⚠️ 部分完成 → 抑制双跑 / doc 单飞 / Kafka 手动 commit+DLQ 已落地（真实集群 E2E 仍缺）**
+**状态：⚠️ 部分完成 → 本机 watch/Kafka E2E 已通过（集群重平衡/毒丸仍缺）**
 
 **已有：**  
 - 入库异步：`INGEST_ASYNC` → 202 + `task_id`；`ingest_jobs`；local/arq 队列；任务查询 API；相关单测。  
 - CDC：**接线完成**——lifespan 启 watchdog/Kafka；`process_event` → `process_change`（非假计数）。  
 - **P1-1 增量：** `suppress_watch` + 上传落盘后抑制；`_quarantine` 不监听；同 `doc_id` `asyncio.Lock` 单飞；Kafka `enable.auto.commit=False`，失败 → `{topic}.dlq` 后 commit（`handle_kafka_message`）。
 
-**仍缺：** 真实 Kafka 重平衡/毒丸 E2E；文件系统统一幂等；「改文件→stats 变」watch E2E；装饰性 `compute_diff` 未驱动存储。
+**08-19 增量：** `tests/test_cdc_watch_kafka_e2e.py` + `scripts/e2e_cdc_watch_kafka.sh` — watch **2 passed**，Kafka roundtrip **1 passed**。
+
+**仍缺：** 真实 Kafka 重平衡/毒丸 E2E；「改文件→stats 变」端到端验收；装饰性 `compute_diff` 未驱动存储。
 
 **验收：**  
 - ✅ 上传大文档可 202 后轮询至成功（手册评测曾跑通）。  
 - ✅ 单测：watch 抑制、quarantine 过滤、doc 单飞、Kafka conf/DLQ。  
-- ❌ 强杀/重平衡不丢更新；真实 watch 目录双跑联调。
+- ✅ **08-19 E2E：** `e2e_cdc_watch_kafka.sh` → watch 2 + kafka 1 passed。  
+- ❌ 强杀/重平衡不丢更新。
 
 ### P1-2 容量、性能与成本治理
 **状态：⚠️ 部分完成 → 用户级 + 租户级 QA 配额已落地（日预算/压测仍缺）**
@@ -286,12 +343,15 @@
 **验收：** ✅ 超限返回 429（用户级 + 租户级单测）。❌ 压测 SLO / 日预算。
 
 ### P1-3 可观测性、告警与故障演练
-**状态：⚠️ 部分完成**
+**状态：⚠️ 部分完成 → 本地告警门禁 + Prometheus 规则已落地**
 
 **已有：** JSON 日志、`request_id`、Prometheus `/metrics`、LLM 回调埋点、health live 探测（向量/state 失败 → HTTP 503）。  
-**仍缺：** OTel 全链路、业务 SLO、告警路由、runbook、演练；内存 state 降级仍可能显示可用。
 
-**验收：** ✅ 本机 health/metrics 可用。❌ 告警时效与 RTO/RPO 演练。
+**08-19 增量：** `scripts/check_alerts.py`（health 核心依赖 + `dependency_up`）；`code/prometheus/alerts.yml`；`docs/09_deployment/alerting.md`。
+
+**仍缺：** OTel 全链路、Alertmanager 路由、RTO/RPO 演练；内存 state 降级仍可能显示可用。
+
+**验收：** ✅ 本机 health/metrics 可用。✅ **08-19 `check_alerts.py` exit 0**（kg 降级 WARN）。❌ 告警路由与 RTO/RPO 演练。
 
 ### P1-4 备份、恢复、保留与数据主体权利
 **状态：⚠️ 部分完成**
@@ -310,12 +370,21 @@
 **验收：** ✅ CI 单测门禁。❌ 高危漏洞/未签名镜像不可发布。
 
 ### P1-6 产品运营闭环与可信 UI
-**状态：⚠️ 部分完成 → grounded 标签 + 上传可见性选择已落地（用户管理/审计 UI/空库引导仍缺）**
+**状态：⚠️ 部分完成 → v0.2 薄切片已齐（企业工作台/强制拒答仍延后）**
 
-**已有：** API 返回 `grounded` / `grounding_notes`；前端聊天元信息展示 grounding 状态；上传面板可选 `private|tenant|public`。  
-**仍缺：** 用户管理/审计看板、空库引导、不可信答案强警示/拒答、合规话术与对外叙述校准。
+**已有：** API 返回 `grounded` / `grounding_notes`；前端聊天元信息展示 grounding 状态；上传面板可选 `private|tenant|public`。
 
-**验收：** ⚠️ grounded 与可见性可在 UI 操作；完整非工程师闭环与强警示仍缺。
+**08-19 增量：** QA 面板空库引导横幅；`grounded=false` 强警示 callout；空库时拦截提问。
+
+**08-19 续：** 管理员在「系统概览」可见用户管理（创建/禁用）+ 审计日志表格；`GET /api/auth/users`；QA 合规免责声明。
+
+**仍缺：** 完整企业工作台；`grounded=false` 后端强制拒答（P2）；对外合规话术文档校准。
+
+**验收：**
+- ✅ grounded 与可见性可在 UI 操作
+- ✅ 空库引导、不可信答案警示、空库拦截提问（08-19）
+- ✅ 管理员用户管理 + 审计看板只读展示（08-19）
+- ❌ 非工程师完整闭环与强制拒答仍缺
 
 ### P1-7 中国区 LLM 网关与模型/成本路由
 **状态：⚠️ 部分完成**
@@ -330,12 +399,15 @@
 ## P2 — 质量提升与规模化
 
 ### RAG 质量与安全评测
-**状态：⚠️ 部分完成**
+**状态：⚠️ 部分完成 → grounded=false 后端强制拒答已落地**
 
 **已有：** `services/grounding.py` 弱校验；空上下文拒答；`evals/` + `scripts/eval_rag_recall.py`（手册 4/4 曾命中）。  
-**仍缺：** `grounded=false` 强制拒答；标注集与线上抽检；忠实度指标。
 
-**验收：** ⚠️ 离线小集可跑。❌ 生产级拒答与持续评测门禁。
+**08-19 增量：** `settings.qa_refuse_ungrounded=True`（默认）；`QAAgent` 校验失败时返回拒答模板而非 LLM 幻觉正文；单测 `test_qa_refuses_ungrounded_answer`。
+
+**仍缺：** 标注集与线上抽检；忠实度指标；持续评测门禁。
+
+**验收：** ⚠️ 离线小集可跑。✅ **08-19 强制拒答（薄切片）**。❌ 生产级持续评测门禁。
 
 ### 图谱检索权重的数据驱动优化
 **状态：⚠️ 部分完成**
@@ -401,6 +473,8 @@
 | 2026-08-15 | **文档 v1.3（路线图校准）** | 消除「已交付/现状/CDC 备忘」与正文矛盾；重排 `v0.2-hardening` 范围；明确本版不做企业工作台大改 / P2 审批流 |
 | 2026-08-15 | **测试入口 + P0-2 ready 过滤** | `run_unit_tests.sh`/`pytest.ini`/CI 对齐；99 passed；`document_search_gate` + 向量检索过滤；修复 DISABLE_LOCAL_EMBEDDINGS 误伤注入 embeddings |
 | 2026-08-15 | **P0-1 Neo4j 双租户 E2E** | `test_neo4j_tenant_e2e.py` + `e2e_tenant_neo4j.sh` 真实联调通过；只读账户仍缺 |
+| 2026-08-17 | **P0-2/3/5 本版收口** | 图谱 ready 过滤；断存储/只读 E2E 脚本；本地自签 TLS + 轮换 runbook；全量单测 106 passed / 8 skipped；真实 docker E2E 待本机跑 |
+| 2026-08-19 | **P0-3/P1-1/P1-3/P2 MultiAgent** | JWT drill 通过；CDC watch 2 + kafka 1 E2E；check_alerts + Prometheus 规则；qa_refuse_ungrounded；单测 114 passed |
 
 ### 验收口径说明
 

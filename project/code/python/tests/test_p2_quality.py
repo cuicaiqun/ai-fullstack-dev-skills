@@ -77,6 +77,39 @@ def test_grounding_rejects_bad_citation_index():
     assert good.grounded is True
 
 
+def test_qa_refuses_ungrounded_answer(monkeypatch):
+    monkeypatch.setattr(settings, "qa_refuse_ungrounded", True)
+
+    async def fake_generate(*args, **kwargs):
+        return "幻觉答案。[来源 9]", ["生成"]
+
+    agent = object.__new__(QAAgent)
+    agent.llm = None
+    agent.vector_store = None
+    agent.knowledge_graph = None
+    agent._generate_answer = fake_generate  # type: ignore[method-assign]
+
+    ctx = [RetrievedContext(content="差旅 7 天内报销", source="handbook.md", score=0.9, retrieval_type="vector")]
+
+    async def _run():
+        from services.grounding import check_answer_grounding
+        from agents.qa_agent import QueryIntent
+
+        answer_text, _reasoning = await agent._generate_answer("问报销", ctx, QueryIntent.FACTOID)
+        grounding = check_answer_grounding(answer_text, ctx)
+        if not grounding.grounded and settings.qa_refuse_ungrounded:
+            answer_text = (
+                "抱歉，当前回答无法通过引用校验，系统不能将其作为可信依据返回。"
+                "请上传相关文档后重试，或换一种问法。"
+            )
+        return answer_text, grounding
+
+    answer, grounding = asyncio.run(_run())
+    assert grounding.grounded is False
+    assert "无法通过引用校验" in answer
+    assert "来源 9" not in answer
+
+
 def test_empty_context_refuses_answer():
     agent = object.__new__(QAAgent)
     agent.llm = None

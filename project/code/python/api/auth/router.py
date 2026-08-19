@@ -113,6 +113,16 @@ async def me(user: User = Depends(get_current_user)):
     return user.to_public_dict()
 
 
+@router.get("/users")
+async def list_users(admin: User = Depends(require_admin)):
+    """租户管理员列出本租户用户（不含密码哈希）。"""
+    users = auth_store.list_users(tenant_id=admin.tenant_id)
+    return {
+        "users": [u.to_public_dict() for u in users],
+        "count": len(users),
+    }
+
+
 @router.post("/users", status_code=201)
 async def create_user(
     req: CreateUserRequest,

@@ -1,0 +1,36 @@
+# P1-3 Prometheus 告警规则示例（配合 /metrics 与 /api/health）
+# 挂载到 Prometheus: rule_files: ["alerts.yml"]
+
+groups:
+  - name: agenthub_availability
+    rules:
+      - alert: AgentHubHealthDegraded
+        expr: |
+          probe_http_status_code{job="agenthub-health"} == 503
+            or on() vector(0) == 0  # placeholder — 见下方 dependency_up
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "AgentHub /api/health 返回 degraded/503"
+          description: "核心依赖 vector_store 或 state_store 不可用。"
+
+      - alert: AgentHubDependencyDown
+        expr: dependency_up == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "依赖 {{ $labels.name }} down"
+          description: "dependency_up{name=\"{{ $labels.name }}\"} 为 0，请检查 Neo4j/Chroma/Postgres。"
+
+      - alert: AgentHubHigh5xxRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+            / clamp_min(sum(rate(http_requests_total[5m])), 0.001) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HTTP 5xx 比例 > 5%"
+          description: "检查 LLM 网关、入库队列与依赖连接。"

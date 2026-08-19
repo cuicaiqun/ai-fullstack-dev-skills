@@ -176,6 +176,24 @@ class AuthStore:
                 conn.close()
         return user
 
+    def list_users(self, *, tenant_id: str | None = None) -> list[User]:
+        """List users; when tenant_id set, restrict to that tenant."""
+        with self._lock:
+            conn = self._connect()
+            try:
+                if tenant_id:
+                    rows = conn.execute(
+                        "SELECT * FROM users WHERE tenant_id = ? ORDER BY username",
+                        (tenant_id,),
+                    ).fetchall()
+                else:
+                    rows = conn.execute(
+                        "SELECT * FROM users ORDER BY username"
+                    ).fetchall()
+                return [self._row_to_user(row) for row in rows]
+            finally:
+                conn.close()
+
     def set_user_disabled(self, user_id: str, disabled: bool) -> User | None:
         """禁用/启用用户并 bump token_version，使既有 JWT 立即失效。"""
         with self._lock:

@@ -97,6 +97,9 @@ class Settings(BaseSettings):
     rate_limit_qa_per_minute: int = 30
     rate_limit_qa_per_tenant_per_minute: int = 120
 
+    # P2 — 不可信答案强制拒答（grounded=false 时不返回 LLM 正文）
+    qa_refuse_ungrounded: bool = True
+
     # P2 — entity alignment
     entity_similarity_threshold: float = 0.82
     entity_alias_map: str = ""  # JSON object {"腾讯公司":"腾讯"} or empty

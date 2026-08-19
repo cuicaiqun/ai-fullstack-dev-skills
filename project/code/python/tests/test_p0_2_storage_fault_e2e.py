@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from agents.doc_parser_agent import DocType, DocumentChunk
+from agents.doc_parser_agent import DocParserAgent, DocType, DocumentChunk
 from agents.knowledge_extract_agent import Entity, ExtractionResult, Relation
 from orchestrator.graph import _build_ingest_graph
 from services.ingest_storage import assess_ingest_storage
@@ -59,11 +59,26 @@ def _wait(seconds: float = 2.0) -> None:
     time.sleep(seconds)
 
 
+def _wait_port(host: str, port: int, timeout: float = 45.0) -> None:
+    import socket
+
+    deadline = time.time() + timeout
+    last = ""
+    while time.time() < deadline:
+        try:
+            with socket.create_connection((host, port), timeout=2):
+                return
+        except OSError as exc:
+            last = str(exc)
+        time.sleep(0.5)
+    raise RuntimeError(f"{host}:{port} not ready: {last}")
+
+
 def _wait_chroma(timeout: float = 45.0) -> None:
     deadline = time.time() + timeout
     urls = (
-        "http://127.0.0.1:8000/api/v1/heartbeat",
         "http://127.0.0.1:8000/api/v2/heartbeat",
+        "http://127.0.0.1:8000/api/v1/heartbeat",
     )
     last = ""
     while time.time() < deadline:
@@ -71,6 +86,7 @@ def _wait_chroma(timeout: float = 45.0) -> None:
             try:
                 with urllib.request.urlopen(url, timeout=2) as resp:
                     if 200 <= resp.status < 300:
+                        _wait_port("127.0.0.1", 8000, timeout=5)
                         return
             except (urllib.error.URLError, TimeoutError, OSError) as exc:
                 last = str(exc)
@@ -92,6 +108,7 @@ def _wait_neo4j(timeout: float = 60.0) -> None:
             )
             status = (out.stdout or "").strip()
             if status in {"healthy", "running"}:
+                _wait_port("127.0.0.1", 7687, timeout=8)
                 return
             last = status
         except Exception as exc:
@@ -127,6 +144,7 @@ def _chunks(doc_id: str, source: str) -> list[DocumentChunk]:
             doc_type=DocType.MARKDOWN,
             metadata={
                 "source": source,
+                "source_path": source,
                 "doc_id": doc_id,
                 "tenant_id": "e2e-fault",
                 "index_status": "pending",
@@ -170,27 +188,54 @@ class _Extractor:
 
 
 class _Embed:
-    """Deterministic vectors so E2E does not load ONNX/HF models."""
+    """Deterministic vectors so E2E does not load ONNX/HF models.
+
+    Isolated collection (see stores fixture) so this dim does not collide
+    with the live MiniLM 384-d ``knowledge_chunks`` collection.
+    """
+
+    dim = 8
+
+    def embed_documents(self, texts):
+        return [[0.1] * self.dim for _ in texts]
+
+    def embed_query(self, text):
+        return [0.1] * self.dim
 
     async def aembed_documents(self, texts):
-        return [[0.1] * 8 for _ in texts]
+        return self.embed_documents(texts)
 
     async def aembed_query(self, text):
-        return [0.1] * 8
+        return self.embed_query(text)
 
 
 async def _init_vs(vs: VectorStoreService) -> None:
-    vs._embeddings = _Embed()
-    await asyncio.wait_for(vs.init(), timeout=20)
-    vs._embeddings = _Embed()
+    """Reconnect Chroma after docker stop/start; HttpClient can RST briefly."""
+    last: Exception | None = None
+    for attempt in range(8):
+        vs._store = None
+        vs._embeddings = _Embed()
+        try:
+            await asyncio.wait_for(vs.init(), timeout=20)
+            vs._embeddings = _Embed()
+            if vs._store is None:
+                raise RuntimeError("chroma init returned empty store")
+            await asyncio.wait_for(vs._run_sync(vs._store.count), timeout=10)
+            return
+        except Exception as exc:  # noqa: BLE001 — retry transport flaps
+            last = exc
+            await asyncio.sleep(1.2 * (attempt + 1))
+    raise RuntimeError(f"chroma init failed after retries: {last}")
 
 
 async def _run_ingest(vs, kg, chunks, extractions) -> dict:
+    meta = dict(chunks[0].metadata)
+    meta.setdefault("source_path", meta.get("source") or "")
     graph = _build_ingest_graph(_Parser(chunks), _Extractor(extractions), vs, kg)
     return await graph.ainvoke(
         {
-            "file_paths": ["/tmp/p0-2-fault.md"],
-            "acl_metadata": chunks[0].metadata,
+            "file_paths": [meta.get("source_path") or "/tmp/p0-2-fault.md"],
+            "acl_metadata": meta,
             "doc_version": 1,
         }
     )
@@ -203,6 +248,7 @@ async def stores(require_docker):
     _ensure_deps()
     settings.chroma_port = int(os.environ.get("CHROMA_PORT", "8000"))
     vs = VectorStoreService()
+    vs.COLLECTION_NAME = f"p02e2e_{uuid.uuid4().hex[:10]}"
     kg = KnowledgeGraphService()
     await _init_vs(vs)
     await asyncio.wait_for(kg.init(), timeout=20)
@@ -216,6 +262,15 @@ async def stores(require_docker):
         yield vs, kg, state
     finally:
         _ensure_deps()
+        try:
+            vs._store = None
+            await _init_vs(vs)
+            await asyncio.wait_for(
+                vs._run_sync(vs._store.delete, where={"tenant_id": "e2e-fault"}),
+                timeout=15,
+            )
+        except Exception:
+            pass
         await kg.close()
 
 

@@ -183,7 +183,9 @@ def _build_ingest_graph(
         extractions = state.get("extractions", [])
         acl = state.get("acl_metadata") or {}
         tenant_id = resolve_tenant_id(acl.get("tenant_id"))
-        source = (acl.get("source_path") or acl.get("doc_id") or "").strip()
+        source = (
+            acl.get("source_path") or acl.get("source") or acl.get("doc_id") or ""
+        ).strip()
         entity_count = 0
         relation_count = 0
         graph_ok = True

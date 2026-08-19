@@ -101,14 +101,22 @@ class KnowledgeGraphService:
             return self._write_driver
         return self._read_driver or self._write_driver
 
-    # 单测兼容：旧字段名指向写驱动
-    @property
-    def _driver(self) -> Any:
-        return self._write_driver
+    def _neo4j_session(self, *, write: bool = False):
+        """Open a session; read driver uses READ access (P0-5 / Community)."""
+        driver = self._driver_for(write=write)
+        if (
+            not write
+            and self._read_driver is not None
+            and driver is self._read_driver
+        ):
+            from neo4j import READ_ACCESS
 
-    @_driver.setter
-    def _driver(self, value: Any) -> None:
-        self._write_driver = value
+            try:
+                return driver.session(default_access_mode=READ_ACCESS)
+            except TypeError:
+                # Unit-test fakes may not accept default_access_mode.
+                pass
+        return driver.session()
 
     async def init(self) -> None:
         from neo4j import AsyncGraphDatabase
@@ -270,7 +278,7 @@ class KnowledgeGraphService:
             if "$tenant_id" not in (cypher or "") and "tenant_id" not in (cypher or ""):
                 logger.warning("cypher missing tenant predicate rejected")
                 raise PermissionError("Cypher must be scoped by tenant_id")
-        async with driver.session() as session:
+        async with self._neo4j_session(write=allow_write) as session:
             result = await session.run(cypher, params)
             return await result.data()
 
@@ -410,7 +418,7 @@ class KnowledgeGraphService:
                 "tenant_id": tid,
             }
         # 全局：内部会话直接跑，不走 require_tenant 门禁
-        async with self._driver_for(write=False).session() as session:
+        async with self._neo4j_session(write=False) as session:
             er = await (await session.run("MATCH (e:Entity) RETURN count(e) AS cnt")).data()
             rr = await (await session.run("MATCH ()-[r]->() RETURN count(r) AS cnt")).data()
         return {

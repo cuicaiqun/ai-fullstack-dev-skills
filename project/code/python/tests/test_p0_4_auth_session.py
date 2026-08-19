@@ -143,6 +143,39 @@ def test_audit_records_login_and_user_create(tmp_path, monkeypatch):
         assert failed
 
 
+def test_list_users_admin_only(tmp_path, monkeypatch):
+    _, main_mod = _patch_auth_store(tmp_path, monkeypatch)
+    with TestClient(main_mod.app) as client:
+        login = client.post(
+            "/api/auth/login",
+            data={"username": "admin", "password": "admin123"},
+        )
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+        client.post(
+            "/api/auth/users",
+            headers=headers,
+            json={"username": "eve", "password": "eve-pass", "role": "member"},
+        )
+        listed = client.get("/api/auth/users", headers=headers)
+        assert listed.status_code == 200
+        names = {u["username"] for u in listed.json()["users"]}
+        assert "admin" in names
+        assert "eve" in names
+        for u in listed.json()["users"]:
+            assert "password_hash" not in u
+            assert "password" not in u
+
+        member_login = client.post(
+            "/api/auth/login",
+            data={"username": "eve", "password": "eve-pass"},
+        )
+        member_headers = {
+            "Authorization": f"Bearer {member_login.json()['access_token']}"
+        }
+        denied = client.get("/api/auth/users", headers=member_headers)
+        assert denied.status_code == 403
+
+
 def test_sqlite_checkpointer_persists_across_reinit(tmp_path, monkeypatch):
     path = tmp_path / "ckpt.sqlite"
     monkeypatch.setattr(settings, "qa_checkpoint_backend", "sqlite")

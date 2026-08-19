@@ -16,7 +16,7 @@ import os
 import uuid
 
 import pytest
-from neo4j import AsyncGraphDatabase
+from neo4j import READ_ACCESS, AsyncGraphDatabase
 
 from agents.knowledge_extract_agent import Entity
 from config import settings
@@ -74,7 +74,7 @@ async def test_readonly_user_cannot_write(kg_with_readonly):
         settings.neo4j_uri, auth=(read_user, read_pass)
     )
     try:
-        async with driver.session() as session:
+        async with driver.session(default_access_mode=READ_ACCESS) as session:
             with pytest.raises(Exception):
                 result = await session.run(
                     "CREATE (n:Entity {tenant_id: $t, name: $n}) RETURN n",
