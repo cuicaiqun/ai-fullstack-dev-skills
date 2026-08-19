@@ -1,5 +1,6 @@
 {
-  "name": "ai-fullstack-dev-skills",
+  "name": "enterprise-knowledge-agent-v3",
+  "user": "ubuntu",
   "build": {
     "dockerfile": "Dockerfile"
   },

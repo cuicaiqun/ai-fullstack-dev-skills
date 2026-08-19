@@ -13,7 +13,8 @@
 
 ### Default verification (no external services)
 
-Unit tests mirror CI and do **not** require Docker or live LLM keys:
+Unit tests mirror CI and do **not** require Docker or live LLM keys.
+Cloud Builds use `requirements-cloud.txt` (no torch/sentence-transformers) to stay within VM limits; set `DISABLE_LOCAL_EMBEDDINGS=1`.
 
 ```bash
 cd project/code/python
