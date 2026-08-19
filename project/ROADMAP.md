@@ -75,7 +75,15 @@
    - **续（同日晚）：** 空库拦截提问；admin 用户管理/审计看板；`GET /api/auth/users`；合规免责声明。
    - **仍缺：** 完整企业工作台；~~后端强制拒答（P2）~~ → **08-19 已落地 `qa_refuse_ungrounded`**。
 
-**全量单测：** `run_unit_tests.sh` → **114 passed, 11 skipped**（08-19 晚）。
+### 2026-08-19 执行记录（P1-4 / P1-5 / P1-1 续）
+
+**已完成：**
+
+1. **P1-4 备份/恢复演练** — `restore.sh` + `drill_backup_restore.sh`；Postgres dump 校验 `pg_restore --list`；`drill_backup_restore.sh` **PASSED**；**`DRILL_RESTORE=1` live restore** → knowledge 库 **7 public tables** 恢复 OK。
+2. **P1-5 CI staging** — 根目录 `.github/workflows/ci-staging.yml`（`check_alerts.py` + `drill_jwt_rotation.sh` + `gen_ci_env.sh`）；主 CI 增加 `test_check_alerts`；**push main / workflow_dispatch 触发**。
+3. **P1-1 Kafka 续** — 毒丸（非法 JSON / process 失败 → DLQ）+ 重平衡 consumer handoff E2E **4 passed**。
+
+**全量单测：** 114 passed, 11 skipped。
 
 ### 2026-08-19 执行记录（MultiAgent：P0-3 JWT / P1-1 / P1-3 / P2）
 
@@ -86,7 +94,7 @@
 3. **P1-3 告警** — `check_alerts.py`（health 核心依赖 + metrics `dependency_up`）；`prometheus/alerts.yml`；`docs/09_deployment/alerting.md`。
 4. **P2 强制拒答** — `settings.qa_refuse_ungrounded=True`；`QAAgent` grounded=false 时返回拒答模板。
 
-**下一刀：** P1-4 备份恢复演练 → P1-5 供应链 → 真实集群 Kafka 重平衡 E2E。
+**下一刀：** ~~P1-4 备份恢复演练~~ → **08-19 drill 通过**；~~P1-5 staging CI~~ → **ci-staging.yml**；P1-1 集群重平衡仍延后。
 
 ### 2026-08-15 执行记录（测试入口 + P0-2 ready 过滤）
 
@@ -324,14 +332,14 @@
 - CDC：**接线完成**——lifespan 启 watchdog/Kafka；`process_event` → `process_change`（非假计数）。  
 - **P1-1 增量：** `suppress_watch` + 上传落盘后抑制；`_quarantine` 不监听；同 `doc_id` `asyncio.Lock` 单飞；Kafka `enable.auto.commit=False`，失败 → `{topic}.dlq` 后 commit（`handle_kafka_message`）。
 
-**08-19 增量：** `tests/test_cdc_watch_kafka_e2e.py` + `scripts/e2e_cdc_watch_kafka.sh` — watch **2 passed**，Kafka roundtrip **1 passed**。
+**08-19 增量：** `tests/test_cdc_watch_kafka_e2e.py` + `scripts/e2e_cdc_watch_kafka.sh` — watch **2 passed**，Kafka **4 passed**（含毒丸 DLQ + 重平衡 handoff）。
 
-**仍缺：** 真实 Kafka 重平衡/毒丸 E2E；「改文件→stats 变」端到端验收；装饰性 `compute_diff` 未驱动存储。
+**仍缺：** 真实 Kafka 集群强杀/重平衡丢消息 E2E；「改文件→stats 变」端到端。
 
 **验收：**  
 - ✅ 上传大文档可 202 后轮询至成功（手册评测曾跑通）。  
 - ✅ 单测：watch 抑制、quarantine 过滤、doc 单飞、Kafka conf/DLQ。  
-- ✅ **08-19 E2E：** `e2e_cdc_watch_kafka.sh` → watch 2 + kafka 1 passed。  
+- ✅ **08-19 E2E：** `e2e_cdc_watch_kafka.sh` → watch 2 + kafka 4 passed（毒丸/重平衡）。  
 - ❌ 强杀/重平衡不丢更新。
 
 ### P1-2 容量、性能与成本治理
@@ -354,20 +362,26 @@
 **验收：** ✅ 本机 health/metrics 可用。✅ **08-19 `check_alerts.py` exit 0**（kg 降级 WARN）。❌ 告警路由与 RTO/RPO 演练。
 
 ### P1-4 备份、恢复、保留与数据主体权利
-**状态：⚠️ 部分完成**
+**状态：⚠️ 部分完成 → Postgres 备份/校验/恢复脚本已落地**
 
 **已有：** `code/scripts/backup.sh`（Postgres/Neo4j 尽力备份）。  
-**仍缺：** Chroma/原件/ACL/Redis 一致快照；按 doc 彻底删除；恢复演练与审计。
 
-**验收：** ❌ 空环境时间点恢复 + 检索一致性；删除全副本处置证明。
+**08-19 增量：** `restore.sh`、`drill_backup_restore.sh`、`docs/09_deployment/backup_restore.md`；演练 **PASSED**（Postgres dump + list）。
+
+**仍缺：** Chroma/原件/ACL/Redis 一致快照；Neo4j 自动 load；空环境全栈恢复 + 检索一致性 E2E。
+
+**验收：** ✅ **08-19 `drill_backup_restore.sh` exit 0**；✅ **`DRILL_RESTORE=1` live restore**（knowledge 7 tables）。❌ 全副本删除证明。
 
 ### P1-5 供应链与发布治理
-**状态：⚠️ 部分完成**
+**状态：⚠️ 部分完成 → CI staging 门禁已接入**
 
-**已有：** `.github/workflows/ci.yml` 跑 pytest。  
-**仍缺：** 镜像 digest/SBOM/签名、密钥扫描门禁、迁移工具、灰度回滚。
+**已有：** `.github/workflows/ci.yml` 跑 pytest + P0-3 gate + alert 单测。  
 
-**验收：** ✅ CI 单测门禁。❌ 高危漏洞/未签名镜像不可发布。
+**08-19 增量：** `.github/workflows/ci-staging.yml` — docker compose 栈上跑 `check_alerts.py` + `drill_jwt_rotation.sh`；`gen_ci_env.sh` 生成 staging `.env.ci`。
+
+**仍缺：** 镜像 digest/SBOM/签名、密钥扫描门禁、灰度回滚。
+
+**验收：** ✅ CI 单测门禁。✅ **staging workflow 定义完成**（根 `.github/workflows/ci-staging.yml`；push main / workflow_dispatch）。❌ 高危漏洞/未签名镜像不可发布。
 
 ### P1-6 产品运营闭环与可信 UI
 **状态：⚠️ 部分完成 → v0.2 薄切片已齐（企业工作台/强制拒答仍延后）**
@@ -474,7 +488,7 @@
 | 2026-08-15 | **测试入口 + P0-2 ready 过滤** | `run_unit_tests.sh`/`pytest.ini`/CI 对齐；99 passed；`document_search_gate` + 向量检索过滤；修复 DISABLE_LOCAL_EMBEDDINGS 误伤注入 embeddings |
 | 2026-08-15 | **P0-1 Neo4j 双租户 E2E** | `test_neo4j_tenant_e2e.py` + `e2e_tenant_neo4j.sh` 真实联调通过；只读账户仍缺 |
 | 2026-08-17 | **P0-2/3/5 本版收口** | 图谱 ready 过滤；断存储/只读 E2E 脚本；本地自签 TLS + 轮换 runbook；全量单测 106 passed / 8 skipped；真实 docker E2E 待本机跑 |
-| 2026-08-19 | **P0-3/P1-1/P1-3/P2 MultiAgent** | JWT drill 通过；CDC watch 2 + kafka 1 E2E；check_alerts + Prometheus 规则；qa_refuse_ungrounded；单测 114 passed |
+| 2026-08-19 | **P1-4/5/1 续** | backup drill + restore 脚本；ci-staging.yml；Kafka 毒丸/重平衡 E2E 4 passed |
 
 ### 验收口径说明
 

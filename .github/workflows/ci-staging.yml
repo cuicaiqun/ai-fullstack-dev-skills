@@ -1,0 +1,66 @@
+name: CI Staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  staging-gates:
+    name: Staging gates (alerts + JWT drill)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: project/code
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate staging env
+        run: |
+          bash scripts/gen_ci_env.sh python/.env.ci
+          echo "DRILL_ADMIN_PASS=$(grep AUTH_BOOTSTRAP_ADMIN_PASSWORD python/.env.ci | cut -d= -f2)" >> "$GITHUB_ENV"
+
+      - name: Start core stack
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml \
+            --env-file python/.env.ci up -d postgres redis chromadb neo4j zookeeper kafka api --build
+
+      - name: Wait for API health
+        run: |
+          for i in $(seq 1 90); do
+            if curl -sf http://127.0.0.1:8080/api/health >/dev/null; then
+              echo "API ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml logs api --tail=80
+          exit 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install python deps for gates
+        working-directory: project/code/python
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements.txt
+
+      - name: P1-3 alert gate
+        working-directory: project/code/python
+        run: API_BASE=http://127.0.0.1:8080 python scripts/check_alerts.py
+
+      - name: P0-3 JWT rotation drill
+        working-directory: project/code/python
+        env:
+          ENV_FILE: .env.ci
+          DRILL_ADMIN_USER: admin
+          DRILL_ADMIN_PASS: ${{ env.DRILL_ADMIN_PASS }}
+          API_BASE: http://127.0.0.1:8080
+        run: bash scripts/drill_jwt_rotation.sh
+
+      - name: P1-5 compose deploy gate
+        working-directory: project/code/python
+        run: python scripts/check_p0_3_deploy.py

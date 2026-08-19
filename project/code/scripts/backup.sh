@@ -2,7 +2,7 @@
 # 数据备份：Postgres + Neo4j dump（生产运维最小可用）
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STAMP="$(date +%Y%m%d_%H%M%S)"
 OUT="${BACKUP_DIR:-$ROOT/backups}/$STAMP"
 mkdir -p "$OUT"

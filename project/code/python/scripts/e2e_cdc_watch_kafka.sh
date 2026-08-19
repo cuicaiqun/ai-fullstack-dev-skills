@@ -14,10 +14,17 @@ echo "=== P1-1 CDC watch E2E ==="
 bash scripts/run_unit_tests.sh tests/test_cdc_watch_kafka_e2e.py::test_watchdog_picks_up_created_file \
   tests/test_cdc_watch_kafka_e2e.py::test_watchdog_suppress_skips_during_ttl -vv "$@"
 
+_kafka_tests=(
+  tests/test_cdc_watch_kafka_e2e.py::test_kafka_produce_consume_and_process
+  tests/test_cdc_watch_kafka_e2e.py::test_kafka_invalid_json_poison_to_dlq
+  tests/test_cdc_watch_kafka_e2e.py::test_kafka_process_failure_poison_to_dlq
+  tests/test_cdc_watch_kafka_e2e.py::test_kafka_rebalance_consumer_handoff
+)
+
 if docker ps --format '{{.Names}}' 2>/dev/null | grep -q agenthub-kafka; then
   echo "=== P1-1 Kafka E2E (kafka container up) ==="
   export RUN_KAFKA_E2E=1
-  bash scripts/run_unit_tests.sh tests/test_cdc_watch_kafka_e2e.py::test_kafka_produce_consume_and_process -vv "$@"
+  bash scripts/run_unit_tests.sh "${_kafka_tests[@]}" -vv "$@"
 else
   CODE_DIR="$(cd "$ROOT/.." && pwd)"
   echo "=== Starting kafka for E2E ==="

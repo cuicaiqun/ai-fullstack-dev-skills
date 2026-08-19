@@ -29,6 +29,7 @@ docker-compose.override.yml
 
 # ── Data & Uploads ────────────────
 uploads/
+backups/
 *.sqlite
 *.db
 data/
