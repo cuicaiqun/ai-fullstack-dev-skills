@@ -10,6 +10,52 @@
 
 **维护角色：** 上线化基线验收（安全+部署门禁）+ 需求池/版本规划；状态必须以代码路径 + 单测/联调证据为准，禁止「文档写完就算完成」。
 
+---
+
+## MVP 门禁（Phase A 出口标准）
+
+> **MVP 定义：** 可对外演示的企业知识 Agent——上传 → 入库 → 检索/问答主链路可跑，安全基线与 CI 一致，有演示文档与已知限制说明。  
+> **规则：** 下表全部 ✅ 才宣告 MVP 达标；未达标前 **禁止** 启动 Post-MVP 大功能（见下一节）。  
+> **Cloud Agent / 总控：** 每轮迭代后更新本表状态；优先清 ⚠️/❌ 项。
+
+| ID | 门禁项 | 验收命令 / 证据 | 状态 | 最近证据 |
+|----|--------|-----------------|------|----------|
+| **M1** | 全量单元测试稳定通过 | `cd project/code/python && REQUIRE_OPENAI_API_KEY=false DISABLE_LOCAL_EMBEDDINGS=1 UPDATE_MODE=off bash scripts/run_unit_tests.sh` → 0 failed | ✅ | 08-19：114 passed / 11 skipped |
+| **M2** | 部署 / 密钥门禁 | `python project/code/python/scripts/check_p0_3_deploy.py` → OK | ✅ | 08-19 deploy check OK |
+| **M3** | P0 安全隔离 E2E | `e2e_tenant_neo4j.sh` + `e2e_neo4j_readonly.sh` passed | ✅ | 08-19 双租户 1 passed；只读 2 passed |
+| **M4** | 入库 → 检索 → 问答主链路 | 上传 + ingest + QA API 有单测覆盖；可本地/compose 演示一次完整路径 | ⚠️ | 单测覆盖有；缺一页「端到端演示」书面验收 |
+| **M5** | 异步入库 + 任务状态 | `/api/ingest/tasks` 相关单测绿 | ✅ | `test_ingest_async.py` 等 |
+| **M6** | 认证 + ACL 基线 | JWT 登录/撤销/文档 ACL 单测绿 | ⚠️ | P0-4 单测绿；SSO / 多副本 HA 非 MVP 范围 |
+| **M7** | CI 与本地测试入口一致 | `.github/workflows/ci.yml` 调用 `run_unit_tests.sh` | ✅ | 08-15 CI 对齐 |
+| **M8** | MVP 演示手册 | `project/docs/` 下独立页：启动步骤、演示路径、已知限制 | ❌ | 未创建 |
+
+**MVP 总状态：⚠️ 接近完成（7/8 项有证据；阻塞：M8 文档 + M4 书面端到端验收）**
+
+**MVP 达标后下一刀：** 从 [Post-MVP Backlog](#post-mvp--ai-engineering-backlog) 取 **B1** 最高优先级未启动项。
+
+---
+
+## Post-MVP / AI Engineering Backlog
+
+> **Phase B：** MVP 全 ✅ 后启用。每项 = 一个薄切片 + 测试/文档 + ROADMAP 证据 + commit。  
+> **禁止：** 在未完成 MVP 门禁时并行开 B 系列大改。
+
+| 优先级 | ID | 主题 | 目标（可验收） | 非目标 | 依赖 ROADMAP | 状态 |
+|--------|-----|------|----------------|--------|--------------|------|
+| 1 | **B1** | **记忆系统** | 用户级长期记忆（Postgres/向量摘要）+ 与会话 checkpointer 分层；QA 可引用记忆；有单测 | 完整 mem0 克隆、跨产品记忆联邦 | P0-4 会话持久 | ❌ |
+| 2 | **B2** | **容错与优雅降级** | 统一依赖健康矩阵（Neo4j/Chroma/Postgres/LLM）；health→503 与 QA 行为一致；消除 silent `except: pass` | 全链路 chaos 工程 | P1-3 告警 | ⚠️ 部分（LLM retry/health 已有） |
+| 3 | **B3** | **高并发与吞吐** | 生产默认 `arq`+Redis 路径文档化；QA 租户配额扩展；热点路径 async 薄切片 | K8s HPA / 多区域 | P1-2 限流 | ⚠️ 部分（限流/队列已有） |
+| 4 | **B4** | **RAG 质量工程** | grounded 引用校验加强；`eval_rag_recall.py` 可选 CI 门禁；GraphRAG 加权可配置 | 完整离线评测平台 | P2 GraphRAG | ⚠️ 部分（强制拒答已落地） |
+| 5 | **B5** | **可观测与运维** | Prometheus 规则与 runbook 对齐；audit log 与 admin UI 数据一致 | 全栈 APM / Tracing | P1-3 | ⚠️ 部分（check_alerts 已有） |
+| 6 | **B6** | **产品化薄切片** | onboarding 优化；grounded 可视化；对外合规话术与 `project/docs` 同步 | 完整企业工作台 | P1-6 | ⚠️ 部分（空库引导/审计 UI 已有） |
+| 7 | **B7** | **意图路由 + RRF** | 查询意图分类 → 多路检索 RRF 融合；相对纯向量基线有分桶报告 | 自动 prompt 优化 | P2 检索 | ❌ |
+| 8 | **B8** | **文档生命周期** | 上传审批流 / 失效撤回 / 责任人；最小可用状态机 | 完整 DAM | P2 治理 | ❌ |
+| 9 | **B9** | **多模态回归** | 损坏/超大文件/真实依赖组合故障注入套件 | 全格式 OCR 精度竞赛 | P2 多模态 | ❌ |
+
+**Post-MVP 执行顺序建议：** B2（统一降级）→ B3（并发默认路径）→ B1（记忆）→ B4（RAG 评测）→ B5 → B6 → B7 → B8 → B9。
+
+---
+
 ## 2026-08-14 基线验收记录
 
 - 已确认真实项目位于 `project/code/`，核心后端位于 `project/code/python/`，当前前端仍为静态演示台（已有 grounded 标签与上传可见性，仍非企业工作台）。
@@ -489,6 +535,7 @@
 | 2026-08-15 | **P0-1 Neo4j 双租户 E2E** | `test_neo4j_tenant_e2e.py` + `e2e_tenant_neo4j.sh` 真实联调通过；只读账户仍缺 |
 | 2026-08-17 | **P0-2/3/5 本版收口** | 图谱 ready 过滤；断存储/只读 E2E 脚本；本地自签 TLS + 轮换 runbook；全量单测 106 passed / 8 skipped；真实 docker E2E 待本机跑 |
 | 2026-08-19 | **P1-4/5/1 续** | backup drill + restore 脚本；ci-staging.yml；Kafka 毒丸/重平衡 E2E 4 passed |
+| 2026-08-19 | **MVP 门禁 + Post-MVP Backlog** | 新增 Phase A 出口标准（M1–M8）与 Phase B AI 工程 backlog（B1–B9）；供 Cloud Agent 持续迭代 |
 
 ### 验收口径说明
 
