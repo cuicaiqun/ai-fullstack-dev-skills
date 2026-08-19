@@ -1,0 +1,9 @@
+{
+  "name": "ai-fullstack-dev-skills",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "install": "bash .cursor/install-cloud-deps.sh",
+  "start": "true",
+  "terminals": []
+}
